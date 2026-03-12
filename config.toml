@@ -1,0 +1,20 @@
+incoming_dir = "~/Music/incoming"
+library_dir = "~/Music/library"
+database = "~/.local/share/musicmgr/music.db"
+
+[import]
+default_format = "{artist}/{album}/{track:02} - {title}.mp3"
+copy_mode = "move"
+
+[transcoding]
+enabled = false
+target_codec = "mp3"
+target_bitrate = "320k"
+
+[playlists]
+generate_artist = true
+generate_genre = true
+location = "~/Music/playlists"
+
+[hash]
+algorithm = "sha256"

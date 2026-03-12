@@ -1,8 +1,11 @@
 package main
 
-var CLI struct {
-	ConfigPath string `help:"Path to config file."`
+import (
+	"github.com/pspiagicw/muzic/argparse"
+)
 
-	Import struct {
-	} `cmd:"" help:"Import Music"`
+var VERSION string = "unversioned"
+
+func main() {
+	argparse.Run(VERSION)
 }
