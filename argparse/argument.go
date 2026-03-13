@@ -1,8 +1,11 @@
 package argparse
 
 import (
+	"log"
+
 	"github.com/alecthomas/kong"
 	"github.com/pspiagicw/groove/config"
+	"github.com/pspiagicw/groove/database"
 )
 
 type Opts struct {
@@ -46,4 +49,13 @@ func Run(version string) {
 	ctx := kong.Parse(&CLI)
 	err := ctx.Run(&Opts{CLI.ConfigPath})
 	ctx.FatalIfErrorf(err)
+	conf, err := config.ConfigProvier(CLI.ConfigPath)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	_, err = database.NewDB(conf.Database)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 }

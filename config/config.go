@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/pelletier/go-toml"
 	"github.com/pspiagicw/groove/utils"
 
@@ -149,6 +151,61 @@ func Validate(configPath string) error {
 	if err != nil {
 		return fmt.Errorf("Error while loading config: %v", err)
 	}
+
+	return nil
+}
+
+func ConfigProvier(configPath string) (*Config, error) {
+	config, err := loadConfig(configPath)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error loading config: %v!", err)
+	}
+
+	err = sanitizeConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("Sanitization failed: %v!", err)
+	}
+
+	return config, nil
+}
+func sanitizeConfig(config *Config) error {
+	// TODO: Add homedir.expand to each one.
+
+	path, err := homedir.Expand(config.IncomingDir)
+	if err != nil {
+		return err
+	}
+	config.IncomingDir = path
+
+	if !utils.AlreadyExists(config.IncomingDir) {
+		return fmt.Errorf("No such directory for incoming files: %v!", config.IncomingDir)
+	}
+
+	path, err = homedir.Expand(config.LibraryDir)
+	if err != nil {
+		return err
+	}
+
+	config.LibraryDir = path
+
+	if !utils.AlreadyExists(config.LibraryDir) {
+		return fmt.Errorf("No such directory for incoming files: %v!", config.IncomingDir)
+	}
+
+	path, err = homedir.Expand(config.Database)
+
+	if err != nil {
+		return err
+	}
+	config.Database = path
+
+	dbFolder := filepath.Base(config.Database)
+	err = utils.CreateIfNotExist(dbFolder)
+	if err != nil {
+		return fmt.Errorf("Error creating parent folders for database: %v!", err)
+	}
+	// TODO: Sanitize other fields, like birate, codec etc.
 
 	return nil
 }

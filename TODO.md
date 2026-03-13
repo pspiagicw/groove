@@ -53,7 +53,7 @@ musicmgr
 * [x] Define config structure
 * [x] Support TOML config format
 * [ ] Expand `~` paths
-* [ ] Validate directories
+* [x] Validate directories
 * [x] Handle missing config gracefully
 
 ## Config Commands
@@ -72,9 +72,9 @@ musicmgr
 
 ## Database Setup
 
-* [ ] Implement SQLite connection
-* [ ] Create DB initialization function
-* [ ] Load schema automatically on startup
+* [x] Implement SQLite connection
+* [x] Create DB initialization function
+* [x] Load schema automatically on startup
 * [ ] Implement migrations system (optional)
 
 ## Schema Creation
