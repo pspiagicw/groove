@@ -58,7 +58,7 @@ musicmgr
 
 ## Config Commands
 
-* [ ] `musicmgr init`
+* [x] `musicmgr init`
 * [ ] `musicmgr config show`
 * [ ] `musicmgr config validate`
 

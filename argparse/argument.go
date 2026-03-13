@@ -4,18 +4,17 @@ import (
 	"fmt"
 
 	"github.com/alecthomas/kong"
-	"github.com/pspiagicw/muzic/config"
+	"github.com/pspiagicw/groove/config"
 )
 
 type Opts struct {
 	ConfigPath string
 }
 
-type InitCMD struct {
+type ConfigInitCMD struct {
 }
 
-func (i *InitCMD) Run(opts *Opts) error {
-	fmt.Printf("Create default config at %s\n", opts.ConfigPath)
+func (i *ConfigInitCMD) Run(opts *Opts) error {
 	return config.Init()
 }
 
@@ -38,13 +37,13 @@ func (c *ConfigValidateCMD) Run(opts *Opts) error {
 type ConfigCMD struct {
 	Show     ConfigShowCMD     `cmd:"" help:"Show the current config."`
 	Validate ConfigValidateCMD `cmd:"" help:"Validate the current config."`
+	Init     ConfigInitCMD     `cmd:"" help:"Initialize the defaultconfig."`
 }
 
 var CLI struct {
 	ConfigPath string `help:"Path to config file."`
 
-	Init   InitCMD   `cmd:"" help:"Initialize the default config."`
-	Config ConfigCMD `cmd:"" help:"Validate or show the config."`
+	Config ConfigCMD `cmd:"" help:"Validate, init or show the config."`
 }
 
 func Run(version string) {

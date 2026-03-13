@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/pspiagicw/muzic/argparse"
+	"github.com/pspiagicw/groove/argparse"
 )
 
 var VERSION string = "unversioned"
