@@ -1,20 +1,20 @@
 package config
 
 import (
-	"errors"
 	"fmt"
-	"github.com/pelletier/go-toml"
-	"io/fs"
+	"io"
 	"os"
-	"path/filepath"
+
+	"github.com/pelletier/go-toml"
+	"github.com/pspiagicw/groove/utils"
 
 	"github.com/adrg/xdg"
 )
 
-var Config struct {
+type Config struct {
 	IncomingDir string `toml:"incomingDir"`
 	LibraryDir  string `toml:"libraryDir"`
-	Database    string
+	Database    string `toml:"database"`
 
 	ImportSettings struct {
 		Format string
@@ -29,6 +29,32 @@ var Config struct {
 	PlaylistSettings struct {
 		Location string
 	} `toml:"playlists"`
+}
+
+func (c Config) PrettyPrint(w io.Writer) {
+	fmt.Fprintln(w, "Configuration")
+	fmt.Fprintln(w, "-------------")
+
+	fmt.Fprintf(w, "Incoming Directory : %s\n", c.IncomingDir)
+	fmt.Fprintf(w, "Library Directory  : %s\n", c.LibraryDir)
+	fmt.Fprintf(w, "Database           : %s\n", c.Database)
+
+	fmt.Fprintln(w)
+
+	fmt.Fprintln(w, "[Import]")
+	fmt.Fprintf(w, "  Format           : %s\n", c.ImportSettings.Format)
+
+	fmt.Fprintln(w)
+
+	fmt.Fprintln(w, "[Transcoding]")
+	fmt.Fprintf(w, "  Enabled          : %t\n", c.TranscodingSettings.Enabled)
+	fmt.Fprintf(w, "  Target Codec     : %s\n", c.TranscodingSettings.TargetCodec)
+	fmt.Fprintf(w, "  Target Bitrate   : %s\n", c.TranscodingSettings.TargetBitrate)
+
+	fmt.Fprintln(w)
+
+	fmt.Fprintln(w, "[Playlists]")
+	fmt.Fprintf(w, "  Location         : %s\n", c.PlaylistSettings.Location)
 }
 
 const DEFAULT_CONFIG = `
@@ -65,105 +91,64 @@ func Init() error {
 		return err
 	}
 
-	if alreadyExists(location) {
+	if utils.AlreadyExists(location) {
 		return fmt.Errorf("Config already exists!")
 	}
 
-	writeToFile(location, DEFAULT_CONFIG)
+	utils.WriteToFile(location, DEFAULT_CONFIG)
 	return nil
 }
 
 func Show(configPath string) error {
-	var err error
-	if configPath == "" {
-		configPath, err = getConfigPath()
+	config, err := loadConfig(configPath)
 
-		if err != nil {
-			return err
-		}
-	}
-
-	if !alreadyExists(configPath) {
-		return fmt.Errorf("No config found at %s!", configPath)
-	}
-
-	err = Validate(configPath)
 	if err != nil {
-		return fmt.Errorf("Config can't be validated: %v!", err)
+		return fmt.Errorf("Error while loading config: %v", err)
 	}
 
-	contents, err := readFile(configPath)
-	if err != nil {
-		return err
-	}
-
-	err = toml.Unmarshal(contents, &Config)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("%v\n", Config)
+	config.PrettyPrint(os.Stdout)
 
 	return nil
 }
 
-func Validate(configPath string) error {
+func loadConfig(configPath string) (*Config, error) {
 	var err error
+
 	if configPath == "" {
 		configPath, err = getConfigPath()
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	if !alreadyExists(configPath) {
-		return fmt.Errorf("No config found at %s!", configPath)
+	if !utils.AlreadyExists(configPath) {
+		return nil, fmt.Errorf("No config found at %s!", configPath)
 	}
 
-	contents, err := readFile(configPath)
-	if err != nil {
-		return err
-	}
-
-	err = toml.Unmarshal(contents, &Config)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("No problems found with the config!")
-	return nil
-}
-
-// TODO: Extract into a helper library.
-func writeToFile(file string, contents string) {
-	createIfNotExist(filepath.Dir(file))
-	os.WriteFile(file, []byte(contents), 0644)
-}
-
-func readFile(file string) ([]byte, error) {
-	contents, err := os.ReadFile(file)
+	contents, err := utils.ReadFromFile(configPath)
 	if err != nil {
 		return nil, err
 	}
 
-	return contents, nil
-}
+	config := new(Config)
 
-func createIfNotExist(folder string) error {
-	if _, err := os.Stat(folder); errors.Is(err, fs.ErrNotExist) {
-		err := os.MkdirAll(folder, 0755)
-		if err != nil {
-			return fmt.Errorf("Error creating directory: %s", folder)
-		}
-	} else if err != nil {
-		return fmt.Errorf("Error stating file: %s", err)
+	err = toml.Unmarshal(contents, config)
+
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	return config, nil
 }
 
-func alreadyExists(path string) bool {
-	_, err := os.Stat(path)
-	return !errors.Is(err, fs.ErrNotExist)
+func Validate(configPath string) error {
 
+	_, err := loadConfig(configPath)
+
+	if err != nil {
+		return fmt.Errorf("Error while loading config: %v", err)
+	}
+
+	return nil
 }

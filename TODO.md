@@ -49,22 +49,22 @@ musicmgr
 
 ## Config System
 
-* [ ] Implement config file loader
-* [ ] Define config structure
-* [ ] Support TOML config format
+* [x] Implement config file loader
+* [x] Define config structure
+* [x] Support TOML config format
 * [ ] Expand `~` paths
 * [ ] Validate directories
-* [ ] Handle missing config gracefully
+* [x] Handle missing config gracefully
 
 ## Config Commands
 
 * [x] `musicmgr init`
-* [ ] `musicmgr config show`
-* [ ] `musicmgr config validate`
+* [x] `musicmgr config show`
+* [x] `musicmgr config validate`
 
 ## Default Config Template
 
-* [ ] Generate default config on init
+* [x] Generate default config on init
 
 ---
 
