@@ -5,15 +5,24 @@ import (
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/mitchellh/go-homedir"
 )
 
 type DB struct {
 	conn *sql.DB
 }
 
+type QueueInfo struct {
+	Id                  int
+	Path                string
+	Hash                string
+	Status              string
+	DetectedArtist      string
+	DetectedAlbum       string
+	DetectedTitle       string
+	DetectedAlbumArtist string
+}
+
 func NewDB(dbPath string) (*DB, error) {
-	dbPath, _ = homedir.Expand(dbPath)
 	conn, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open database: %v!", err)
@@ -33,8 +42,110 @@ func NewDB(dbPath string) (*DB, error) {
 	return db, nil
 }
 
+func (d *DB) QueryQueue() ([]QueueInfo, error) {
+	queryResult := []QueueInfo{}
+	rows, err := d.conn.Query("SELECT * FROM import_queue;")
+	if err != nil {
+		return nil, fmt.Errorf("Error querying for import queue: %v!", err)
+	}
+
+	for rows.Next() {
+		info := new(QueueInfo)
+		err := rows.Scan(&info.Id, &info.Path, &info.Hash, &info.Status, &info.DetectedArtist, &info.DetectedTitle, &info.DetectedAlbum, &info.DetectedAlbumArtist)
+		if err != nil {
+			return nil, fmt.Errorf("Error scanning query into struct: %v!", err)
+		}
+
+		queryResult = append(queryResult, *info)
+	}
+
+	return queryResult, nil
+}
+
+func (d *DB) InsertArtist(artist string) (int, error) {
+	result, err := d.conn.Exec("INSERT INTO artists(name) VALUES (?) ON CONFLICT(NAME) DO NOTHING;", artist)
+	if err != nil {
+		return -1, fmt.Errorf("Error inserting artist: %v!", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return -1, fmt.Errorf("Error getting last inserted artist ID: %v!", err)
+	}
+
+	return int(id), nil
+}
+
+func (d *DB) InsertAlbum(album string) (int, error) {
+
+	result, err := d.conn.Exec("INSERT INTO albums(title) values (?) on conflict(title) do nothing;", album)
+	if err != nil {
+		return -1, fmt.Errorf("Error inserting album: %v!", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return -1, fmt.Errorf("Error getting last inserted album ID: %v!", err)
+	}
+
+	return int(id), nil
+}
+
+func (d *DB) InsertTrack(title string, albumID int) (int, error) {
+
+	result, err := d.conn.Exec("INSERT INTO tracks(title, album_id) values (?, ?);", title, albumID)
+	if err != nil {
+		return -1, fmt.Errorf("Error inserting track: %v!", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return -1, fmt.Errorf("Error getting last inserted track ID: %v!", err)
+	}
+
+	return int(id), nil
+}
+
+func (d *DB) LinkTrackAndArtist(trackID int, artistID int) error {
+	_, err := d.conn.Exec("INSERT INTO track_artists(track_id, artist_id) values (?, ?);", trackID, artistID)
+
+	if err != nil {
+		return fmt.Errorf("Error linking track with artist: %v!", err)
+	}
+	return nil
+}
+
+func (d *DB) AddToQueue(queueInfo []QueueInfo) (int, error) {
+	rowsAffected := 0
+	stmt, err := d.conn.Prepare("INSERT OR IGNORE INTO import_queue(path, hash, status, detected_artist, detected_title, detected_album, detected_album_artist) values (?, ?, ?, ?, ?, ?, ?)")
+
+	if err != nil {
+		return 0, fmt.Errorf("Error while inserting into db: %v!", err)
+	}
+
+	for _, info := range queueInfo {
+		result, err := stmt.Exec(info.Path, info.Hash, info.Status, info.DetectedArtist, info.DetectedTitle, info.DetectedAlbum, info.DetectedAlbumArtist)
+		if err != nil {
+			return 0, fmt.Errorf("Error while inserting into db: %v!", err)
+		}
+
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return 0, fmt.Errorf("Error confirming insertion: %v", err)
+		}
+		rowsAffected += int(rows)
+	}
+
+	err = stmt.Close()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, nil
+}
+
 func (d *DB) Close() error {
-	return d.Close()
+	return d.conn.Close()
 }
 
 func (d *DB) initSchema() error {
@@ -46,7 +157,7 @@ CREATE TABLE IF NOT EXISTS artists (
 
 CREATE TABLE IF NOT EXISTS albums (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	title TEXT,
+	title TEXT UNIQUE,
 	year INTEGER,
 	album_artist_id INTEGER,
 	FOREIGN KEY(album_artist_id) REFERENCES artists(id)
@@ -54,7 +165,7 @@ CREATE TABLE IF NOT EXISTS albums (
 
 CREATE TABLE IF NOT EXISTS tracks (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	title TEXT,
+	title TEXT UNIQUE,
 	album_id INTEGER,
 	track_number INTEGER,
 	disc_number INTEGER,
@@ -87,11 +198,12 @@ CREATE TABLE IF NOT EXISTS files (
 CREATE TABLE IF NOT EXISTS import_queue (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	path TEXT UNIQUE,
-	hash TEXT,
+	hash TEXT UNIQUE,
 	status TEXT,
 	detected_artist TEXT,
 	detected_title TEXT,
-	detected_album TEXT
+	detected_album TEXT,
+	detected_album_artist TEXT
 );
 	`
 	_, err := d.conn.Exec(schema)

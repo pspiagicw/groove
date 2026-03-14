@@ -155,7 +155,7 @@ func Validate(configPath string) error {
 	return nil
 }
 
-func ConfigProvier(configPath string) (*Config, error) {
+func ConfigProvider(configPath string) (*Config, error) {
 	config, err := loadConfig(configPath)
 
 	if err != nil {
@@ -169,9 +169,9 @@ func ConfigProvier(configPath string) (*Config, error) {
 
 	return config, nil
 }
-func sanitizeConfig(config *Config) error {
-	// TODO: Add homedir.expand to each one.
 
+// TODO: Refactor this one if possible.
+func sanitizeConfig(config *Config) error {
 	path, err := homedir.Expand(config.IncomingDir)
 	if err != nil {
 		return err

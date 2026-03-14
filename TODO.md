@@ -52,7 +52,7 @@ musicmgr
 * [x] Implement config file loader
 * [x] Define config structure
 * [x] Support TOML config format
-* [ ] Expand `~` paths
+* [x] Expand `~` paths
 * [x] Validate directories
 * [x] Handle missing config gracefully
 
@@ -81,31 +81,31 @@ musicmgr
 
 ### Artists Table
 
-* [ ] `artists`
+* [x] `artists`
 
 ### Albums Table
 
-* [ ] `albums`
+* [x] `albums`
 
 ### Tracks Table
 
-* [ ] `tracks`
+* [x] `tracks`
 
 ### Track Artists (many-to-many)
 
-* [ ] `track_artists`
+* [x] `track_artists`
 
 ### Files Table
 
-* [ ] `files`
+* [x] `files`
 
 ### Import Queue
 
-* [ ] `import_queue`
+* [x] `import_queue`
 
 ## Database Utilities
 
-* [ ] Insert functions
+* [x] Insert functions
 * [ ] Query helpers
 * [ ] Transaction helpers
 * [ ] Indexes for performance

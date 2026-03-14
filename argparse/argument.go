@@ -1,11 +1,9 @@
 package argparse
 
 import (
-	"log"
-
 	"github.com/alecthomas/kong"
+	"github.com/pspiagicw/groove/commands"
 	"github.com/pspiagicw/groove/config"
-	"github.com/pspiagicw/groove/database"
 )
 
 type Opts struct {
@@ -39,23 +37,31 @@ type ConfigCMD struct {
 	Init     ConfigInitCMD     `cmd:"" help:"Initialize the default config."`
 }
 
+type ScanCMD struct {
+}
+
+func (s *ScanCMD) Run(opts *Opts) error {
+	return commands.Scan(opts.ConfigPath)
+}
+
+type ImportCMD struct {
+	DryRun bool `help:"Dry run the import process."`
+}
+
+func (s *ImportCMD) Run(opts *Opts) error {
+	return commands.Import(opts.ConfigPath)
+}
+
 var CLI struct {
 	ConfigPath string `help:"Path to config file."`
 
 	Config ConfigCMD `cmd:"" help:"Validate, init or show the config."`
+	Scan   ScanCMD   `cmd:""  help:"Scan incoming directory for music."`
+	Import ImportCMD `cmd:""  help:"Import music."`
 }
 
 func Run(version string) {
 	ctx := kong.Parse(&CLI)
 	err := ctx.Run(&Opts{CLI.ConfigPath})
 	ctx.FatalIfErrorf(err)
-	conf, err := config.ConfigProvier(CLI.ConfigPath)
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
-
-	_, err = database.NewDB(conf.Database)
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
 }
