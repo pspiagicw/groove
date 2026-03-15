@@ -2,10 +2,12 @@ package commands
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/pspiagicw/groove/config"
 	"github.com/pspiagicw/groove/database"
+	"github.com/pspiagicw/groove/utils"
 )
 
 func Import(configPath string) error {
@@ -23,7 +25,7 @@ func Import(configPath string) error {
 
 	for _, item := range queue {
 		if confirmQueueItem(item) {
-			err := importItem(db, item)
+			err := importItem(conf, db, item)
 			if err != nil {
 				return fmt.Errorf("Error importing item: %v!", err)
 			}
@@ -32,7 +34,7 @@ func Import(configPath string) error {
 
 	return nil
 }
-func importItem(db *database.DB, item database.QueueInfo) error {
+func importItem(conf *config.Config, db *database.DB, item database.QueueItem) error {
 
 	// TODO: These functions will sanitize the data if needed.
 	artists := getArtists(item)
@@ -65,6 +67,11 @@ func importItem(db *database.DB, item database.QueueInfo) error {
 		}
 	}
 
+	err = moveFile(conf, item)
+	if err != nil {
+		return fmt.Errorf("Error moving file: %v!", err)
+	}
+
 	err = db.MarkProcessed(item)
 	if err != nil {
 		return err
@@ -72,21 +79,45 @@ func importItem(db *database.DB, item database.QueueInfo) error {
 
 	return nil
 }
+func moveFile(conf *config.Config, item database.QueueItem) error {
+	err := utils.CreateIfNotExist(conf.LibraryDir)
+	if err != nil {
+		return fmt.Errorf("Error creating library folder: %v!", err)
+	}
+	extension := filepath.Ext(item.Path)
+
+	newPath := filepath.Join(conf.LibraryDir, item.DetectedAlbum, fmt.Sprintf("%s · %s%s", item.DetectedTitle, item.DetectedArtist, extension))
+	err = utils.CreateIfNotExist(filepath.Dir(newPath))
+	if err != nil {
+		return fmt.Errorf("Error creating directory for file: %v", err)
+	}
+
+	if utils.AlreadyExists(newPath) {
+		return fmt.Errorf("Error copying file, destination file already exists!")
+	}
+
+	err = utils.CopyFile(item.Path, newPath)
+	if err != nil {
+		return fmt.Errorf("Error copying file: %v!", err)
+	}
+
+	return nil
+}
 
 // TODO: Implement this functions properly.
-func getArtists(item database.QueueInfo) []string {
+func getArtists(item database.QueueItem) []string {
 	return strings.Split(item.DetectedArtist, ";")
 }
-func getAlbum(item database.QueueInfo) string {
+func getAlbum(item database.QueueItem) string {
 	return item.DetectedAlbum
 }
-func getAlbumArtist(item database.QueueInfo) string {
+func getAlbumArtist(item database.QueueItem) string {
 	return item.DetectedAlbumArtist
 }
-func getTitle(item database.QueueInfo) string {
+func getTitle(item database.QueueItem) string {
 	return item.DetectedTitle
 }
-func confirmQueueItem(info database.QueueInfo) bool {
+func confirmQueueItem(info database.QueueItem) bool {
 	fmt.Println("---- Import Queue Item ----")
 	fmt.Printf("ID: %d\n", info.Id)
 	fmt.Printf("Path: %s\n", info.Path)

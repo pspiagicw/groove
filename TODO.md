@@ -106,7 +106,7 @@ musicmgr
 ## Database Utilities
 
 * [x] Insert functions
-* [ ] Query helpers
+* [x] Query helpers
 * [ ] Transaction helpers
 * [ ] Indexes for performance
 
@@ -116,39 +116,39 @@ musicmgr
 
 ## File Discovery
 
-* [ ] Recursive directory scanning
-* [ ] Filter supported extensions
+* [x] Recursive directory scanning
+* [x] Filter supported extensions
 
 Supported formats:
 
-* [ ] mp3
-* [ ] flac
-* [ ] opus
-* [ ] ogg
-* [ ] m4a
-* [ ] wav
+* [x] mp3
+* [x] flac
+* [x] opus
+* [x] ogg
+* [x] m4a
+* [x] wav
 
 ## Scanner Tasks
 
-* [ ] Detect new files
-* [ ] Ignore already imported files
-* [ ] Ignore unsupported formats
-* [ ] Handle broken files
+* [x] Detect new files
+* [x] Ignore already imported files
+* [x] Ignore unsupported formats
+* [x] Handle broken files
 
 ## Hash System
 
-* [ ] Implement file hashing
-* [ ] Use SHA256
-* [ ] Detect duplicates using hash
-* [ ] Store hash in database
+* [x] Implement file hashing
+* [x] Use SHA256
+* [x] Detect duplicates using hash
+* [x] Store hash in database
 
 ## Queue Insert
 
-* [ ] Insert scanned files into `import_queue`
+* [x] Insert scanned files into `import_queue`
 
 ## CLI
 
-* [ ] `musicmgr scan`
+* [x] `musicmgr scan`
 * [ ] `--force`
 * [ ] `--ext`
 
@@ -158,19 +158,19 @@ Supported formats:
 
 ## Metadata Reader
 
-* [ ] Integrate tag reader library
-* [ ] Extract metadata fields
+* [x] Integrate tag reader library
+* [x] Extract metadata fields
 
 Fields:
 
-* [ ] title
-* [ ] artist
-* [ ] album
-* [ ] track number
-* [ ] disc number
-* [ ] year
-* [ ] genre
-* [ ] album art
+* [x] title
+* [x] artist
+* [x] album
+* [x] track number
+* [x] disc number
+* [x] year
+* [x] genre
+* [x] album art
 
 ## Metadata Normalization
 
@@ -200,8 +200,8 @@ Support parsing formats:
 
 ## Database Storage
 
-* [ ] Store artists individually
-* [ ] Link via `track_artists` table
+* [x] Store artists individually
+* [x] Link via `track_artists` table
 
 ---
 
@@ -248,9 +248,9 @@ Editable fields:
 
 Steps:
 
-* [ ] Load queue entry
-* [ ] Validate metadata
-* [ ] Generate destination path
+* [x] Load queue entry
+* [x] Validate metadata
+* [x] Generate destination path
 * [ ] Create directory structure
 * [ ] Rename file
 * [ ] Move file to library

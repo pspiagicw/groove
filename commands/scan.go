@@ -70,8 +70,8 @@ func isMusicFile(path string) bool {
 	ext := filepath.Ext(path)
 	return ext == ".mp3" || ext == ".flac" || ext == ".opus" || ext == ".wav" || ext == ".m4a" || ext == ".ogg"
 }
-func processFiles(files []string) ([]database.QueueInfo, error) {
-	queueInfo := []database.QueueInfo{}
+func processFiles(files []string) ([]database.QueueItem, error) {
+	queueInfo := []database.QueueItem{}
 	for _, filepath := range files {
 		f, err := os.Open(filepath)
 		if err != nil {
@@ -88,13 +88,15 @@ func processFiles(files []string) ([]database.QueueInfo, error) {
 			return nil, fmt.Errorf("Error calculating hash: %v!", err)
 		}
 
-		info := database.QueueInfo{
+		info := database.QueueItem{
 			Path:           filepath,
 			Hash:           hash,
 			Status:         "pending",
 			DetectedArtist: metadata.Artist(),
 			DetectedTitle:  metadata.Title(),
 			DetectedAlbum:  metadata.Album(),
+			DetectedYear:   metadata.Year(),
+			DetectedGenre:  metadata.Genre(),
 		}
 
 		queueInfo = append(queueInfo, info)

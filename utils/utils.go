@@ -45,3 +45,21 @@ func ReadFromFile(file string) ([]byte, error) {
 
 	return contents, nil
 }
+func CopyFile(from, to string) error {
+	f, err := os.Open(from)
+	if err != nil {
+		return fmt.Errorf("Error opening file for copying: %v!", err)
+	}
+
+	o, err := os.Create(to)
+	if err != nil {
+		return fmt.Errorf("Error opening destination file for copying: %v!", err)
+	}
+
+	_, err = o.ReadFrom(f)
+	if err != nil {
+		return fmt.Errorf("Error copying file contents: %v!", err)
+	}
+
+	return nil
+}

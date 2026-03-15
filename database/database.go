@@ -17,7 +17,7 @@ type DB struct {
 	conn *sql.DB
 }
 
-type QueueInfo struct {
+type QueueItem struct {
 	Id                  int
 	Path                string
 	Hash                string
@@ -26,6 +26,8 @@ type QueueInfo struct {
 	DetectedAlbum       string
 	DetectedTitle       string
 	DetectedAlbumArtist string
+	DetectedYear        int
+	DetectedGenre       string
 }
 
 func NewDB(dbPath string) (*DB, error) {
@@ -48,15 +50,15 @@ func NewDB(dbPath string) (*DB, error) {
 	return db, nil
 }
 
-func (d *DB) QueryQueue() ([]QueueInfo, error) {
-	queryResult := []QueueInfo{}
+func (d *DB) QueryQueue() ([]QueueItem, error) {
+	queryResult := []QueueItem{}
 	rows, err := d.conn.Query("SELECT * FROM import_queue where status = 'pending';")
 	if err != nil {
 		return nil, fmt.Errorf("Error querying for import queue: %v!", err)
 	}
 
 	for rows.Next() {
-		info := new(QueueInfo)
+		info := new(QueueItem)
 		err := rows.Scan(&info.Id, &info.Path, &info.Hash, &info.Status, &info.DetectedArtist, &info.DetectedTitle, &info.DetectedAlbum, &info.DetectedAlbumArtist)
 		if err != nil {
 			return nil, fmt.Errorf("Error scanning query into struct: %v!", err)
@@ -133,7 +135,7 @@ func (d *DB) LinkTrackAndArtist(trackID int, artistID int) error {
 	return nil
 }
 
-func (d *DB) AddToQueue(queueInfo []QueueInfo) (int, error) {
+func (d *DB) AddToQueue(queueInfo []QueueItem) (int, error) {
 	rowsAffected := 0
 	stmt, err := d.conn.Prepare("INSERT OR IGNORE INTO import_queue(path, hash, status, detected_artist, detected_title, detected_album, detected_album_artist) values (?, ?, ?, ?, ?, ?, ?)")
 
@@ -162,7 +164,7 @@ func (d *DB) AddToQueue(queueInfo []QueueInfo) (int, error) {
 	return rowsAffected, nil
 }
 
-func (d *DB) MarkProcessed(queueInfo QueueInfo) error {
+func (d *DB) MarkProcessed(queueInfo QueueItem) error {
 
 	_, err := d.conn.Exec("UPDATE import_queue SET status = 'imported' where id = ?", queueInfo.Id)
 
