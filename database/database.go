@@ -7,6 +7,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+type DBTX interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	Query(query string, args ...any) (*sql.Rows, error)
+	QueryRow(query string, args ...any) *sql.Row
+	Prepare(query string) (*sql.Stmt, error)
+}
 type DB struct {
 	conn *sql.DB
 }
@@ -44,7 +50,7 @@ func NewDB(dbPath string) (*DB, error) {
 
 func (d *DB) QueryQueue() ([]QueueInfo, error) {
 	queryResult := []QueueInfo{}
-	rows, err := d.conn.Query("SELECT * FROM import_queue;")
+	rows, err := d.conn.Query("SELECT * FROM import_queue where status = 'pending';")
 	if err != nil {
 		return nil, fmt.Errorf("Error querying for import queue: %v!", err)
 	}
@@ -63,47 +69,59 @@ func (d *DB) QueryQueue() ([]QueueInfo, error) {
 }
 
 func (d *DB) InsertArtist(artist string) (int, error) {
-	result, err := d.conn.Exec("INSERT INTO artists(name) VALUES (?) ON CONFLICT(NAME) DO NOTHING;", artist)
+	_, err := d.conn.Exec("INSERT INTO artists(name) VALUES (?) ON CONFLICT(NAME) DO NOTHING;", artist)
 	if err != nil {
 		return -1, fmt.Errorf("Error inserting artist: %v!", err)
 	}
 
-	id, err := result.LastInsertId()
+	row := d.conn.QueryRow("SELECT id from artists where name = ?;", artist)
+
+	var id int
+	err = row.Scan(&id)
+
 	if err != nil {
-		return -1, fmt.Errorf("Error getting last inserted artist ID: %v!", err)
+		return 0, fmt.Errorf("Error finding id of inserted artist: %v!", err)
 	}
 
-	return int(id), nil
+	return id, nil
 }
 
 func (d *DB) InsertAlbum(album string) (int, error) {
 
-	result, err := d.conn.Exec("INSERT INTO albums(title) values (?) on conflict(title) do nothing;", album)
+	_, err := d.conn.Exec("INSERT INTO albums(title) values (?) on conflict(title) do nothing;", album)
 	if err != nil {
 		return -1, fmt.Errorf("Error inserting album: %v!", err)
 	}
 
-	id, err := result.LastInsertId()
+	row := d.conn.QueryRow("SELECT id from albums where title = ?;", album)
+
+	var id int
+	err = row.Scan(&id)
+
 	if err != nil {
-		return -1, fmt.Errorf("Error getting last inserted album ID: %v!", err)
+		return 0, fmt.Errorf("Error finding id of inserted album: %v!", err)
 	}
 
-	return int(id), nil
+	return id, nil
 }
 
 func (d *DB) InsertTrack(title string, albumID int) (int, error) {
 
-	result, err := d.conn.Exec("INSERT INTO tracks(title, album_id) values (?, ?);", title, albumID)
+	_, err := d.conn.Exec("INSERT INTO tracks(title, album_id) values (?, ?) on conflict(title) do nothing;", title, albumID)
 	if err != nil {
 		return -1, fmt.Errorf("Error inserting track: %v!", err)
 	}
 
-	id, err := result.LastInsertId()
+	row := d.conn.QueryRow("SELECT id from tracks where title = ?;", title)
+
+	var id int
+	err = row.Scan(&id)
+
 	if err != nil {
-		return -1, fmt.Errorf("Error getting last inserted track ID: %v!", err)
+		return 0, fmt.Errorf("Error finding id of inserted track: %v!", err)
 	}
 
-	return int(id), nil
+	return id, nil
 }
 
 func (d *DB) LinkTrackAndArtist(trackID int, artistID int) error {
@@ -142,6 +160,17 @@ func (d *DB) AddToQueue(queueInfo []QueueInfo) (int, error) {
 	}
 
 	return rowsAffected, nil
+}
+
+func (d *DB) MarkProcessed(queueInfo QueueInfo) error {
+
+	_, err := d.conn.Exec("UPDATE import_queue SET status = 'imported' where id = ?", queueInfo.Id)
+
+	if err != nil {
+		return fmt.Errorf("Error marking queue item: %v!", err)
+	}
+
+	return nil
 }
 
 func (d *DB) Close() error {

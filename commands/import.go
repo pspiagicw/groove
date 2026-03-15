@@ -44,14 +44,17 @@ func importItem(db *database.DB, item database.QueueInfo) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println(albumID)
 
 	trackID, err := db.InsertTrack(title, albumID)
 	if err != nil {
 		return err
 	}
+	fmt.Println(trackID)
 
 	for _, artist := range artists {
 		artistID, err := db.InsertArtist(artist)
+		fmt.Println(artistID)
 		if err != nil {
 			return err
 		}
@@ -61,6 +64,12 @@ func importItem(db *database.DB, item database.QueueInfo) error {
 			return err
 		}
 	}
+
+	err = db.MarkProcessed(item)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
