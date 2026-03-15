@@ -2,11 +2,13 @@ package commands
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"strings"
 
 	"github.com/pspiagicw/groove/config"
 	"github.com/pspiagicw/groove/database"
+	"github.com/pspiagicw/groove/musicbrainz"
 	"github.com/pspiagicw/groove/utils"
 )
 
@@ -118,6 +120,7 @@ func getTitle(item database.QueueItem) string {
 	return item.DetectedTitle
 }
 func confirmQueueItem(info database.QueueItem) bool {
+
 	fmt.Println("---- Import Queue Item ----")
 	fmt.Printf("ID: %d\n", info.Id)
 	fmt.Printf("Path: %s\n", info.Path)
@@ -127,6 +130,12 @@ func confirmQueueItem(info database.QueueItem) bool {
 	fmt.Printf("Detected Album Artist: %s\n", info.DetectedAlbumArtist)
 	fmt.Printf("Detected Album: %s\n", info.DetectedAlbum)
 	fmt.Printf("Detected Title: %s\n", info.DetectedTitle)
+
+	recording, err := musicbrainz.Query(info.DetectedTitle, info.DetectedArtist)
+	if err != nil {
+		log.Fatalf("Error querying musicbrainz! %v\n", err)
+	}
+	fmt.Println(recording)
 
 	fmt.Print("\nProceed? (y/n): ")
 
