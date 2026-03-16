@@ -9,6 +9,7 @@ import (
 	"github.com/dhowden/tag"
 	"github.com/pspiagicw/groove/config"
 	"github.com/pspiagicw/groove/database"
+	"github.com/pspiagicw/groove/prettylog"
 )
 
 func Scan(configPath string) error {
@@ -22,7 +23,7 @@ func Scan(configPath string) error {
 		return fmt.Errorf("Error connecting to database: %v", err)
 	}
 
-	fmt.Println(conf.IncomingDir)
+	prettylog.Infof("Scanning %s", conf.IncomingDir)
 	files, err := globFiles(conf.IncomingDir)
 
 	queueInfo, err := processFiles(files)
@@ -31,7 +32,7 @@ func Scan(configPath string) error {
 	if err != nil {
 		return fmt.Errorf("Error inserting queue: %v!", err)
 	}
-	fmt.Printf("Rows affected: %d\n", rowsAffected)
+	prettylog.Successf("Queued %d file(s) for import", rowsAffected)
 	// TODO: Add n files duplicate thing.
 
 	err = db.Close()

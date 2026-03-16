@@ -6,11 +6,19 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/mitchellh/go-homedir"
+	"github.com/pspiagicw/groove/prettylog"
 )
 
 func AlreadyExists(path string) bool {
 
 	_, err := os.Stat(path)
+
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		prettylog.Fatalf("Failed to check path: %v", err)
+	}
+
 	return !errors.Is(err, fs.ErrNotExist)
 
 }
@@ -61,5 +69,34 @@ func CopyFile(from, to string) error {
 		return fmt.Errorf("Error copying file contents: %v!", err)
 	}
 
+	err = f.Close()
+	if err != nil {
+		return fmt.Errorf("Error closing file: %v!", err)
+
+	}
+
 	return nil
+}
+
+// Helper function to expand home.
+// Fatalf if some error occurs!
+func ExpandHome(path string) string {
+
+	path, err := homedir.Expand(path)
+
+	if err != nil {
+		prettylog.Fatalf("Failed to expand ~: %v", err)
+	}
+
+	return path
+}
+
+func ExpandAndEnsureExists(path string) string {
+	expandPath := ExpandHome(path)
+
+	if !AlreadyExists(expandPath) {
+		prettylog.Fatalf("No such path exists (%s)", expandPath)
+	}
+
+	return expandPath
 }

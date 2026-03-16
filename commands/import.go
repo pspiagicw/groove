@@ -2,13 +2,14 @@ package commands
 
 import (
 	"fmt"
-	"log"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/pspiagicw/groove/config"
 	"github.com/pspiagicw/groove/database"
 	"github.com/pspiagicw/groove/musicbrainz"
+	"github.com/pspiagicw/groove/prettylog"
 	"github.com/pspiagicw/groove/utils"
 )
 
@@ -48,20 +49,20 @@ func importItem(conf *config.Config, db *database.DB, item database.QueueItem) e
 	if err != nil {
 		return err
 	}
-	fmt.Println(albumID)
+	prettylog.Infof("Linked album %q as id=%d", album, albumID)
 
 	trackID, err := db.InsertTrack(title, albumID)
 	if err != nil {
 		return err
 	}
-	fmt.Println(trackID)
+	prettylog.Infof("Linked track %q as id=%d", title, trackID)
 
 	for _, artist := range artists {
 		artistID, err := db.InsertArtist(artist)
-		fmt.Println(artistID)
 		if err != nil {
 			return err
 		}
+		prettylog.Infof("Linked artist %q as id=%d", artist, artistID)
 
 		err = db.LinkTrackAndArtist(trackID, artistID)
 		if err != nil {
@@ -78,6 +79,8 @@ func importItem(conf *config.Config, db *database.DB, item database.QueueItem) e
 	if err != nil {
 		return err
 	}
+
+	prettylog.Successf("Imported %q", item.DetectedTitle)
 
 	return nil
 }
@@ -119,25 +122,44 @@ func getAlbumArtist(item database.QueueItem) string {
 func getTitle(item database.QueueItem) string {
 	return item.DetectedTitle
 }
-func confirmQueueItem(info database.QueueItem) bool {
 
-	fmt.Println("---- Import Queue Item ----")
-	fmt.Printf("ID: %d\n", info.Id)
-	fmt.Printf("Path: %s\n", info.Path)
-	fmt.Printf("Hash: %s\n", info.Hash)
-	fmt.Printf("Status: %s\n", info.Status)
-	fmt.Printf("Detected Artist: %s\n", info.DetectedArtist)
-	fmt.Printf("Detected Album Artist: %s\n", info.DetectedAlbumArtist)
-	fmt.Printf("Detected Album: %s\n", info.DetectedAlbum)
-	fmt.Printf("Detected Title: %s\n", info.DetectedTitle)
+func formatArtists(recording *musicbrainz.Recording) string {
+	artists := make([]string, 0, len(recording.Artists))
+	for _, artist := range recording.Artists {
+		artists = append(artists, artist.Name)
+	}
+
+	return strings.Join(artists, ", ")
+}
+
+func confirmQueueItem(info database.QueueItem) bool {
+	prettylog.PrintBlock(
+		os.Stdout,
+		"Import Queue Item",
+		prettylog.KV("ID", info.Id),
+		prettylog.KV("Path", info.Path),
+		prettylog.KV("Hash", info.Hash),
+		prettylog.KV("Status", info.Status),
+		prettylog.KV("Artist", info.DetectedArtist),
+		prettylog.KV("Album Artist", info.DetectedAlbumArtist),
+		prettylog.KV("Album", info.DetectedAlbum),
+		prettylog.KV("Title", info.DetectedTitle),
+	)
 
 	recording, err := musicbrainz.Query(info.DetectedTitle, info.DetectedArtist)
 	if err != nil {
-		log.Fatalf("Error querying musicbrainz! %v\n", err)
+		prettylog.Fatalf("MusicBrainz query failed: %v", err)
 	}
-	fmt.Println(recording)
+	prettylog.PrintBlock(
+		os.Stdout,
+		"MusicBrainz Match",
+		prettylog.KV("Title", recording.Title),
+		prettylog.KV("Artists", formatArtists(recording)),
+		prettylog.KV("Release Count", len(recording.Releases)),
+		prettylog.KV("Length (ms)", recording.Length),
+	)
 
-	fmt.Print("\nProceed? (y/n): ")
+	fmt.Print(prettylog.Prompt("Proceed? (y/n): "))
 
 	var input string
 	fmt.Scanln(&input)

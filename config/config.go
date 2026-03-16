@@ -2,96 +2,28 @@ package config
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/mitchellh/go-homedir"
 	"github.com/pelletier/go-toml"
+	"github.com/pspiagicw/groove/prettylog"
 	"github.com/pspiagicw/groove/utils"
 
 	"github.com/adrg/xdg"
 )
 
-type Config struct {
-	IncomingDir string `toml:"incomingDir"`
-	LibraryDir  string `toml:"libraryDir"`
-	Database    string `toml:"database"`
-
-	ImportSettings struct {
-		Format string
-	} `toml:"import"`
-
-	TranscodingSettings struct {
-		Enabled       bool
-		TargetCodec   string `toml:"targetCodec"`
-		TargetBitrate string `toml:"targetBirate"`
-	} `toml:"trancoding"`
-
-	PlaylistSettings struct {
-		Location string
-	} `toml:"playlists"`
-}
-
-func (c Config) PrettyPrint(w io.Writer) {
-	fmt.Fprintln(w, "Configuration")
-	fmt.Fprintln(w, "-------------")
-
-	fmt.Fprintf(w, "Incoming Directory : %s\n", c.IncomingDir)
-	fmt.Fprintf(w, "Library Directory  : %s\n", c.LibraryDir)
-	fmt.Fprintf(w, "Database           : %s\n", c.Database)
-
-	fmt.Fprintln(w)
-
-	fmt.Fprintln(w, "[Import]")
-	fmt.Fprintf(w, "  Format           : %s\n", c.ImportSettings.Format)
-
-	fmt.Fprintln(w)
-
-	fmt.Fprintln(w, "[Transcoding]")
-	fmt.Fprintf(w, "  Enabled          : %t\n", c.TranscodingSettings.Enabled)
-	fmt.Fprintf(w, "  Target Codec     : %s\n", c.TranscodingSettings.TargetCodec)
-	fmt.Fprintf(w, "  Target Bitrate   : %s\n", c.TranscodingSettings.TargetBitrate)
-
-	fmt.Fprintln(w)
-
-	fmt.Fprintln(w, "[Playlists]")
-	fmt.Fprintf(w, "  Location         : %s\n", c.PlaylistSettings.Location)
-}
-
-const DEFAULT_CONFIG = `
-incomingDir = "~/Music/incoming"
-libraryDir = "~/Music/library"
-database = "~/.local/share/musicmgr/music.db"
-
-[import]
-format = "{album}/{track:02} - {title}.mp3"
-
-[transcoding]
-enabled = false
-targetCodec = "mp3"
-targetBitrate = "320k"
-
-[playlists]
-location = "~/Music/playlists"
-`
-
-func getConfigPath() (string, error) {
+func getConfigPath() string {
 	location, err := xdg.ConfigFile("groove/config.toml")
 
 	if err != nil {
-		return "", err
+		prettylog.Errorf("Failed to resolve config path: %v", err)
 	}
 
-	return location, nil
+	return location
 }
 
 func Init() error {
-	location, err := getConfigPath()
-
-	if err != nil {
-		return err
-	}
+	location := getConfigPath()
 
 	if utils.AlreadyExists(location) {
 		return fmt.Errorf("Config already exists!")
@@ -102,35 +34,26 @@ func Init() error {
 }
 
 func Show(configPath string) error {
-	config, err := loadConfig(configPath)
-
-	if err != nil {
-		return fmt.Errorf("Error while loading config: %v", err)
-	}
+	config := loadConfig(configPath)
 
 	config.PrettyPrint(os.Stdout)
 
 	return nil
 }
 
-func loadConfig(configPath string) (*Config, error) {
-	var err error
-
+func loadConfig(configPath string) *Config {
 	if configPath == "" {
-		configPath, err = getConfigPath()
-
-		if err != nil {
-			return nil, err
-		}
+		configPath = getConfigPath()
 	}
 
 	if !utils.AlreadyExists(configPath) {
-		return nil, fmt.Errorf("No config found at %s!", configPath)
+		prettylog.Fatalf("No config found at %s", configPath)
 	}
 
 	contents, err := utils.ReadFromFile(configPath)
+
 	if err != nil {
-		return nil, err
+		prettylog.Fatalf("Failed to read config: %v", err)
 	}
 
 	config := new(Config)
@@ -138,74 +61,42 @@ func loadConfig(configPath string) (*Config, error) {
 	err = toml.Unmarshal(contents, config)
 
 	if err != nil {
-		return nil, err
+		prettylog.Fatalf("Failed to parse config: %v", err)
 	}
 
-	return config, nil
+	return config
 }
 
 func Validate(configPath string) error {
 
-	_, err := loadConfig(configPath)
-
-	if err != nil {
-		return fmt.Errorf("Error while loading config: %v", err)
-	}
+	// If config loads, then it's valid!
+	_ = loadConfig(configPath)
 
 	return nil
 }
 
 func ConfigProvider(configPath string) (*Config, error) {
-	config, err := loadConfig(configPath)
+	config := loadConfig(configPath)
 
-	if err != nil {
-		return nil, fmt.Errorf("Error loading config: %v!", err)
-	}
-
-	err = sanitizeConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("Sanitization failed: %v!", err)
-	}
+	sanitizeConfig(config)
 
 	return config, nil
 }
 
-// TODO: Refactor this one if possible.
-func sanitizeConfig(config *Config) error {
-	path, err := homedir.Expand(config.IncomingDir)
-	if err != nil {
-		return err
-	}
-	config.IncomingDir = path
+// DONE: Refactor this one if possible.
+// TODO: Sanitize other fields, like birate, codec etc.
+func sanitizeConfig(config *Config) {
 
-	if !utils.AlreadyExists(config.IncomingDir) {
-		return fmt.Errorf("No such directory for incoming files: %v!", config.IncomingDir)
-	}
+	config.IncomingDir = utils.ExpandAndEnsureExists(config.IncomingDir)
 
-	path, err = homedir.Expand(config.LibraryDir)
-	if err != nil {
-		return err
-	}
+	config.LibraryDir = utils.ExpandAndEnsureExists(config.LibraryDir)
 
-	config.LibraryDir = path
-
-	if !utils.AlreadyExists(config.LibraryDir) {
-		return fmt.Errorf("No such directory for incoming files: %v!", config.IncomingDir)
-	}
-
-	path, err = homedir.Expand(config.Database)
-
-	if err != nil {
-		return err
-	}
-	config.Database = path
+	config.Database = utils.ExpandHome(config.Database)
 
 	dbFolder := filepath.Base(config.Database)
-	err = utils.CreateIfNotExist(dbFolder)
-	if err != nil {
-		return fmt.Errorf("Error creating parent folders for database: %v!", err)
-	}
-	// TODO: Sanitize other fields, like birate, codec etc.
+	err := utils.CreateIfNotExist(dbFolder)
 
-	return nil
+	if err != nil {
+		prettylog.Fatalf("Failed to create parent folder for database: %v", err)
+	}
 }

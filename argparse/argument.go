@@ -4,6 +4,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/pspiagicw/groove/commands"
 	"github.com/pspiagicw/groove/config"
+	"github.com/pspiagicw/groove/prettylog"
 )
 
 type Opts struct {
@@ -63,5 +64,7 @@ var CLI struct {
 func Run(version string) {
 	ctx := kong.Parse(&CLI)
 	err := ctx.Run(&Opts{CLI.ConfigPath})
-	ctx.FatalIfErrorf(err)
+	if err != nil {
+		prettylog.Fatalf("CLI command failed: %v", err)
+	}
 }
