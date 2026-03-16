@@ -27,20 +27,13 @@ func Scan(configPath string) {
 
 	prettylog.Infof("Processed %d files.", len(files))
 
-	rowsAffected, err := db.AddToQueue(queueInfo)
-
-	if err != nil {
-		prettylog.Fatalf("Error inserting into queue: %v!", err)
-	}
+	rowsAffected := db.AddToQueue(queueInfo)
 
 	// DONE: Add n files duplicate thing.
-	prettylog.Successf("%d items inserted into queue. found %d duplicates!", rowsAffected, len(queueInfo))
-	prettylog.Successf("Queued %d file(s) for import", rowsAffected)
+	prettylog.Successf("%d items inserted into queue. found %d duplicates!", rowsAffected, len(files)-rowsAffected)
 
-	err = db.Close()
-	if err != nil {
-		prettylog.Fatalf("Failed to close database: %v!", err)
-	}
+	db.Close()
+	prettylog.Successf("Queued %d file(s) for import", rowsAffected)
 }
 
 func globFiles(incomingDir string) []string {
@@ -70,8 +63,8 @@ func globFiles(incomingDir string) []string {
 	return files
 }
 
-func processFiles(files []string) []database.QueueItem {
-	queueInfo := []database.QueueItem{}
+func processFiles(files []string) []database.ScannedItem {
+	queueInfo := []database.ScannedItem{}
 	// We try to process as many files as possible.
 	// Thus Errorf and not Fatalf
 	for _, filepath := range files {
@@ -94,15 +87,22 @@ func processFiles(files []string) []database.QueueItem {
 			continue
 		}
 
-		info := database.QueueItem{
-			Path:           filepath,
-			Hash:           hash,
-			Status:         "pending",
-			DetectedArtist: metadata.Artist(),
-			DetectedTitle:  metadata.Title(),
-			DetectedAlbum:  metadata.Album(),
-			DetectedYear:   metadata.Year(),
-			DetectedGenre:  metadata.Genre(),
+		discNumber, _ := metadata.Disc()
+		trackNumber, _ := metadata.Track()
+
+		info := database.ScannedItem{
+			Path:                filepath,
+			Hash:                hash,
+			Status:              "pending",
+			DetectedArtist:      metadata.Artist(),
+			DetectedTitle:       metadata.Title(),
+			DetectedAlbum:       metadata.Album(),
+			DetectedAlbumArtist: metadata.AlbumArtist(),
+			DetectedYear:        metadata.Year(),
+			DetectedGenre:       metadata.Genre(),
+			DetectedDisc:        discNumber,
+			DetectedTrackNumber: trackNumber,
+			DetectedFileType:    metadata.FileType(),
 		}
 
 		queueInfo = append(queueInfo, info)

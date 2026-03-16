@@ -29,7 +29,7 @@ type Config struct {
 const DEFAULT_CONFIG = `
 incomingDir = "~/Music/incoming"
 libraryDir = "~/Music/library"
-database = "~/.local/share/musicmgr/music.db"
+database = "~/.local/share/groove/music.db"
 
 [import]
 format = "{album}/{track:02} - {title}.mp3"

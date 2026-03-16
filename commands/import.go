@@ -18,23 +18,20 @@ func Import(configPath string) error {
 
 	db := database.NewDB(conf.Database)
 
-	queue, err := db.QueryQueue()
-	if err != nil {
-		return fmt.Errorf("Error querying queue: %v!", err)
-	}
+	queue := db.QueryQueue()
 
 	for _, item := range queue {
-		if confirmQueueItem(item) {
-			err := importItem(conf, db, item)
-			if err != nil {
-				return fmt.Errorf("Error importing item: %v!", err)
-			}
+
+		proceed := getItemDetails(&item)
+
+		if proceed {
+			importItem(conf, db, item)
 		}
 	}
 
 	return nil
 }
-func importItem(conf *config.Config, db *database.DB, item database.QueueItem) error {
+func importItem(conf *config.Config, db *database.DB, item database.ScannedItem) error {
 
 	// TODO: These functions will sanitize the data if needed.
 	artists := getArtists(item)
@@ -81,7 +78,7 @@ func importItem(conf *config.Config, db *database.DB, item database.QueueItem) e
 
 	return nil
 }
-func moveFile(conf *config.Config, item database.QueueItem) error {
+func moveFile(conf *config.Config, item database.ScannedItem) error {
 	err := utils.CreateIfNotExist(conf.LibraryDir)
 	if err != nil {
 		return fmt.Errorf("Error creating library folder: %v!", err)
@@ -107,20 +104,20 @@ func moveFile(conf *config.Config, item database.QueueItem) error {
 }
 
 // TODO: Implement this functions properly.
-func getArtists(item database.QueueItem) []string {
+func getArtists(item database.ScannedItem) []string {
 	return strings.Split(item.DetectedArtist, ";")
 }
-func getAlbum(item database.QueueItem) string {
+func getAlbum(item database.ScannedItem) string {
 	return item.DetectedAlbum
 }
-func getAlbumArtist(item database.QueueItem) string {
+func getAlbumArtist(item database.ScannedItem) string {
 	return item.DetectedAlbumArtist
 }
-func getTitle(item database.QueueItem) string {
+func getTitle(item database.ScannedItem) string {
 	return item.DetectedTitle
 }
 
-func formatArtists(recording *musicbrainz.Recording) string {
+func formatArtists(recording musicbrainz.Recording) string {
 	artists := make([]string, 0, len(recording.Artists))
 	for _, artist := range recording.Artists {
 		artists = append(artists, artist.Name)
@@ -129,43 +126,52 @@ func formatArtists(recording *musicbrainz.Recording) string {
 	return strings.Join(artists, ", ")
 }
 
-func confirmQueueItem(info database.QueueItem) bool {
+func printRecording(recording musicbrainz.Recording) {
 	prettylog.PrintBlock(
 		os.Stdout,
-		"Import Queue Item",
-		prettylog.KV("ID", info.Id),
-		prettylog.KV("Path", info.Path),
-		prettylog.KV("Hash", info.Hash),
-		prettylog.KV("Status", info.Status),
-		prettylog.KV("Artist", info.DetectedArtist),
-		prettylog.KV("Album Artist", info.DetectedAlbumArtist),
-		prettylog.KV("Album", info.DetectedAlbum),
-		prettylog.KV("Title", info.DetectedTitle),
+		"MusicBrainz Match",
+		prettylog.KV("Title", recording.Title),
+		prettylog.KV("Artists", formatArtists(recording)),
+		prettylog.KV("Release Count", len(recording.Releases)),
+		prettylog.KV("Length (ms)", recording.Length),
 	)
+}
 
-	fmt.Print(prettylog.Prompt("Proceed? (y/n): "))
+func getItemDetails(info *database.ScannedItem) bool {
+	// prettylog.PrintBlock(
+	// 	os.Stdout,
+	// 	"Item to Import",
+	// 	prettylog.KV("ID", info.Id),
+	// 	prettylog.KV("Path", info.Path),
+	// 	prettylog.KV("Hash", info.Hash),
+	// 	prettylog.KV("Status", info.Status),
+	// 	prettylog.KV("Artist", info.DetectedArtist),
+	// 	prettylog.KV("Album Artist", info.DetectedAlbumArtist),
+	// 	prettylog.KV("Album", info.DetectedAlbum),
+	// 	prettylog.KV("Title", info.DetectedTitle),
+	// 	prettylog.KV("Year", info.DetectedYear),
+	// 	prettylog.KV("Genre", info.DetectedGenre),
+	// )
 
-	var input string
-	fmt.Scanln(&input)
+	item := confirmItemDetails(info)
 
-	if input == "y" {
-		recording, err := musicbrainz.Query(info.DetectedTitle, info.DetectedArtist)
-		if err != nil {
-			prettylog.Fatalf("MusicBrainz query failed: %v", err)
-		}
-		prettylog.PrintBlock(
-			os.Stdout,
-			"MusicBrainz Match",
-			prettylog.KV("Title", recording.Title),
-			prettylog.KV("Artists", formatArtists(recording)),
-			prettylog.KV("Release Count", len(recording.Releases)),
-			prettylog.KV("Length (ms)", recording.Length),
-		)
-	}
+	fmt.Println(item)
 
-	if input == "y" || input == "Y" {
-		return true
-	}
+	// fmt.Print(prettylog.Prompt("Proceed? (y/n): "))
+	//
+	// var input string
+	// fmt.Scanln(&input)
+	//
+	// if input == "y" {
+	// 	// recording, err := musicbrainz.Query(info.DetectedTitle, info.DetectedArtist)
+	// 	// if err != nil {
+	// 	// 	prettylog.Fatalf("MusicBrainz query failed: %v", err)
+	// 	// }
+	// }
+	//
+	// if input == "y" || input == "Y" {
+	// 	return true
+	// }
 
 	return false
 }

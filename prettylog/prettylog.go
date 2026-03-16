@@ -95,7 +95,33 @@ func KV(key string, value any) string {
 	return lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		keyStyle.Render(key),
-		valueStyle.Render(fmt.Sprint(value)),
+		valueStyle.Render(fieldToString(value)),
+	)
+}
+
+func listToString(artists []string) string {
+	mods := []string{}
+	for _, a := range artists {
+		mods = append(mods, fmt.Sprintf("'%s'", a))
+	}
+
+	return strings.Join(mods, " · ")
+}
+func fieldToString(field any) string {
+	switch field := field.(type) {
+	case []string:
+		return listToString(field)
+	default:
+		return fmt.Sprint(field)
+	}
+}
+
+func KVWithDiff(key string, oldValue any, newValue any) string {
+	valueString := valueStyle.Render(fieldToString(oldValue) + " => " + fieldToString(newValue))
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		keyStyle.Render(key),
+		valueString,
 	)
 }
 

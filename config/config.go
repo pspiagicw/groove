@@ -30,6 +30,7 @@ func Init() error {
 	}
 
 	utils.WriteToFile(location, DEFAULT_CONFIG)
+	prettylog.Successf("Successfully created config at %s", location)
 	return nil
 }
 

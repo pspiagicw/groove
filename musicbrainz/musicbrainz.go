@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+type Release struct {
+	Title string `json:"title"`
+	Date  string `json:"date"`
+	ID    string `json: "id"`
+}
+
 type Recording struct {
 	ID      string `json:"id"`
 	Title   string `json:"title"`
@@ -16,20 +22,17 @@ type Recording struct {
 		Name string `json:"name"`
 	} `json:"artist-credit"`
 
-	Releases []struct {
-		Title string `json:"title"`
-		Date  string `json:"date"`
-	} `json:"releases"`
+	Releases []Release `json:"releases"`
 }
 type MBResponse struct {
 	Recordings []Recording `json:"recordings"`
 }
 
-func Query(title string, artist string) (*Recording, error) {
+func Query(title string, artist string) ([]Recording, error) {
 	query := url.QueryEscape(fmt.Sprintf(`recording: "%s" AND artist:"%s"`, title, artist))
 
 	url := fmt.Sprintf(
-		"https://musicbrainz.org/ws/2/recording?query=%s&fmt=json&limit=1&inc=artists+releases",
+		"https://musicbrainz.org/ws/2/recording?query=%s&fmt=json&limit=5&inc=artists+releases",
 		query,
 	)
 
@@ -64,7 +67,7 @@ func Query(title string, artist string) (*Recording, error) {
 		return nil, fmt.Errorf("no results")
 	}
 
-	return &result.Recordings[0], nil
+	return result.Recordings, nil
 
 }
 

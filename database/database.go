@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/dhowden/tag"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pspiagicw/groove/prettylog"
 )
@@ -18,7 +19,7 @@ type DB struct {
 	conn *sql.DB
 }
 
-type QueueItem struct {
+type ScannedItem struct {
 	Id                  int
 	Path                string
 	Hash                string
@@ -29,6 +30,9 @@ type QueueItem struct {
 	DetectedAlbumArtist string
 	DetectedYear        int
 	DetectedGenre       string
+	DetectedDisc        int
+	DetectedTrackNumber int
+	DetectedFileType    tag.FileType
 }
 
 func NewDB(dbPath string) *DB {
@@ -51,24 +55,42 @@ func NewDB(dbPath string) *DB {
 	return db
 }
 
-func (d *DB) QueryQueue() ([]QueueItem, error) {
-	queryResult := []QueueItem{}
+func (d *DB) QueryQueue() []ScannedItem {
+
+	queryResult := []ScannedItem{}
 	rows, err := d.conn.Query("SELECT * FROM import_queue where status = 'pending';")
+
 	if err != nil {
-		return nil, fmt.Errorf("Error querying for import queue: %v!", err)
+		prettylog.Fatalf("Failed to query items from database: %v!", err)
 	}
 
 	for rows.Next() {
-		info := new(QueueItem)
-		err := rows.Scan(&info.Id, &info.Path, &info.Hash, &info.Status, &info.DetectedArtist, &info.DetectedTitle, &info.DetectedAlbum, &info.DetectedAlbumArtist)
+
+		info := new(ScannedItem)
+		err := rows.Scan(
+			&info.Id,
+			&info.Path,
+			&info.Hash,
+			&info.Status,
+			&info.DetectedArtist,
+			&info.DetectedTitle,
+			&info.DetectedAlbum,
+			&info.DetectedAlbumArtist,
+			&info.DetectedYear,
+			&info.DetectedGenre,
+			&info.DetectedDisc,
+			&info.DetectedTrackNumber,
+			&info.DetectedFileType,
+		)
+
 		if err != nil {
-			return nil, fmt.Errorf("Error scanning query into struct: %v!", err)
+			prettylog.Fatalf("Failed to scan sql result into struct: %v!", err)
 		}
 
 		queryResult = append(queryResult, *info)
 	}
 
-	return queryResult, nil
+	return queryResult
 }
 
 func (d *DB) InsertArtist(artist string) (int, error) {
@@ -136,36 +158,37 @@ func (d *DB) LinkTrackAndArtist(trackID int, artistID int) error {
 	return nil
 }
 
-func (d *DB) AddToQueue(queueInfo []QueueItem) (int, error) {
+func (d *DB) AddToQueue(queueInfo []ScannedItem) int {
 	rowsAffected := 0
-	stmt, err := d.conn.Prepare("INSERT OR IGNORE INTO import_queue(path, hash, status, detected_artist, detected_title, detected_album, detected_album_artist) values (?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := d.conn.Prepare("INSERT OR IGNORE INTO import_queue(path, hash, status, detected_artist, detected_title, detected_album, detected_album_artist, detected_year, detected_genre, detected_disc, detected_track_number, detected_filetype) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
 	if err != nil {
-		return 0, fmt.Errorf("Failed to insert item into db: %v!", err)
+		prettylog.Fatalf("Failed to insert item into queue: %v!", err)
 	}
 
 	for _, info := range queueInfo {
-		result, err := stmt.Exec(info.Path, info.Hash, info.Status, info.DetectedArtist, info.DetectedTitle, info.DetectedAlbum, info.DetectedAlbumArtist)
+		result, err := stmt.Exec(info.Path, info.Hash, info.Status, info.DetectedArtist, info.DetectedTitle, info.DetectedAlbum, info.DetectedAlbumArtist, info.DetectedYear, info.DetectedGenre, info.DetectedDisc, info.DetectedTrackNumber, info.DetectedFileType)
+
 		if err != nil {
-			return 0, fmt.Errorf("Failed to insert item into db: %v!", err)
+			prettylog.Fatalf("Failed to insert item into db: %v!", err)
 		}
 
 		rows, err := result.RowsAffected()
 		if err != nil {
-			return 0, fmt.Errorf("Failed to fetch item processed: %v", err)
+			prettylog.Fatalf("Failed to fetch item processed: %v", err)
 		}
 		rowsAffected += int(rows)
 	}
 
 	err = stmt.Close()
 	if err != nil {
-		return 0, err
+		prettylog.Fatalf("Failed to close database statement: %v", err)
 	}
 
-	return rowsAffected, nil
+	return rowsAffected
 }
 
-func (d *DB) MarkProcessed(queueInfo QueueItem) error {
+func (d *DB) MarkProcessed(queueInfo ScannedItem) error {
 
 	_, err := d.conn.Exec("UPDATE import_queue SET status = 'imported' where id = ?", queueInfo.Id)
 
@@ -176,8 +199,11 @@ func (d *DB) MarkProcessed(queueInfo QueueItem) error {
 	return nil
 }
 
-func (d *DB) Close() error {
-	return d.conn.Close()
+func (d *DB) Close() {
+	err := d.conn.Close()
+	if err != nil {
+		prettylog.Fatalf("Failed to close database: %v!", err)
+	}
 }
 
 func (d *DB) initSchema() {
@@ -235,7 +261,12 @@ CREATE TABLE IF NOT EXISTS import_queue (
 	detected_artist TEXT,
 	detected_title TEXT,
 	detected_album TEXT,
-	detected_album_artist TEXT
+	detected_album_artist TEXT,
+	detected_year INTEGER,
+	detected_genre TEXT,
+	detected_disc INTEGER,
+	detected_track_number INTEGER,
+	detected_filetype TEXT
 );
 	`
 	_, err := d.conn.Exec(schema)
