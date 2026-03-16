@@ -146,23 +146,25 @@ func confirmQueueItem(info database.QueueItem) bool {
 		prettylog.KV("Title", info.DetectedTitle),
 	)
 
-	recording, err := musicbrainz.Query(info.DetectedTitle, info.DetectedArtist)
-	if err != nil {
-		prettylog.Fatalf("MusicBrainz query failed: %v", err)
-	}
-	prettylog.PrintBlock(
-		os.Stdout,
-		"MusicBrainz Match",
-		prettylog.KV("Title", recording.Title),
-		prettylog.KV("Artists", formatArtists(recording)),
-		prettylog.KV("Release Count", len(recording.Releases)),
-		prettylog.KV("Length (ms)", recording.Length),
-	)
-
 	fmt.Print(prettylog.Prompt("Proceed? (y/n): "))
 
 	var input string
 	fmt.Scanln(&input)
+
+	if input == "y" {
+		recording, err := musicbrainz.Query(info.DetectedTitle, info.DetectedArtist)
+		if err != nil {
+			prettylog.Fatalf("MusicBrainz query failed: %v", err)
+		}
+		prettylog.PrintBlock(
+			os.Stdout,
+			"MusicBrainz Match",
+			prettylog.KV("Title", recording.Title),
+			prettylog.KV("Artists", formatArtists(recording)),
+			prettylog.KV("Release Count", len(recording.Releases)),
+			prettylog.KV("Length (ms)", recording.Length),
+		)
+	}
 
 	if input == "y" || input == "Y" {
 		return true
