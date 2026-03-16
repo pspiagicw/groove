@@ -79,7 +79,7 @@ func Errorf(format string, args ...any) {
 }
 
 func Fatalf(format string, args ...any) {
-	Errorf(format, args...)
+	writeLine(errWriter, line("fatal", errorColor, format, args...))
 	os.Exit(1)
 }
 

@@ -14,12 +14,9 @@ import (
 )
 
 func Import(configPath string) error {
-	conf, err := config.ConfigProvider(configPath)
-	if err != nil {
-		return fmt.Errorf("Error loading config: %v!", err)
-	}
+	conf := config.ConfigProvider(configPath)
 
-	db, err := database.NewDB(conf.Database)
+	db := database.NewDB(conf.Database)
 
 	queue, err := db.QueryQueue()
 	if err != nil {

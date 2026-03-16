@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -10,43 +9,45 @@ import (
 	"github.com/pspiagicw/groove/config"
 	"github.com/pspiagicw/groove/database"
 	"github.com/pspiagicw/groove/prettylog"
+	"github.com/pspiagicw/groove/utils"
 )
 
-func Scan(configPath string) error {
-	conf, err := config.ConfigProvider(configPath)
-	if err != nil {
-		return fmt.Errorf("Error loading config: %v", err)
-	}
+func Scan(configPath string) {
 
-	db, err := database.NewDB(conf.Database)
-	if err != nil {
-		return fmt.Errorf("Error connecting to database: %v", err)
-	}
+	conf := config.ConfigProvider(configPath)
+
+	db := database.NewDB(conf.Database)
 
 	prettylog.Infof("Scanning %s", conf.IncomingDir)
-	files, err := globFiles(conf.IncomingDir)
+	files := globFiles(conf.IncomingDir)
 
-	queueInfo, err := processFiles(files)
-	// fmt.Println(queueInfo)
+	prettylog.Infof("Scanned %d files.", len(files))
+
+	queueInfo := processFiles(files)
+
+	prettylog.Infof("Processed %d files.", len(files))
+
 	rowsAffected, err := db.AddToQueue(queueInfo)
+
 	if err != nil {
-		return fmt.Errorf("Error inserting queue: %v!", err)
+		prettylog.Fatalf("Error inserting into queue: %v!", err)
 	}
+
+	// DONE: Add n files duplicate thing.
+	prettylog.Successf("%d items inserted into queue. found %d duplicates!", rowsAffected, len(queueInfo))
 	prettylog.Successf("Queued %d file(s) for import", rowsAffected)
-	// TODO: Add n files duplicate thing.
 
 	err = db.Close()
 	if err != nil {
-		return fmt.Errorf("Error closing database: %v!", err)
+		prettylog.Fatalf("Failed to close database: %v!", err)
 	}
-
-	return nil
 }
 
-func globFiles(incomingDir string) ([]string, error) {
+func globFiles(incomingDir string) []string {
 	files := []string{}
 	err := filepath.WalkDir(incomingDir, func(path string, dirEntry fs.DirEntry, err error) error {
 		if err != nil {
+			prettylog.Errorf("Error while recursing directory: %v!", err)
 			return err
 		}
 
@@ -55,38 +56,42 @@ func globFiles(incomingDir string) ([]string, error) {
 			return nil
 		}
 
-		if isMusicFile(path) {
+		if utils.IsMusicFile(path) {
 			files = append(files, path)
 		}
 
 		return nil
 	})
 
+	// We only log a error and not fatalf, cause we can still import whatever was scanned.
 	if err != nil {
-		return nil, err
+		prettylog.Errorf("Error while recursing directory: %v!", err)
 	}
-	return files, nil
+	return files
 }
-func isMusicFile(path string) bool {
-	ext := filepath.Ext(path)
-	return ext == ".mp3" || ext == ".flac" || ext == ".opus" || ext == ".wav" || ext == ".m4a" || ext == ".ogg"
-}
-func processFiles(files []string) ([]database.QueueItem, error) {
+
+func processFiles(files []string) []database.QueueItem {
 	queueInfo := []database.QueueItem{}
+	// We try to process as many files as possible.
+	// Thus Errorf and not Fatalf
 	for _, filepath := range files {
 		f, err := os.Open(filepath)
 		if err != nil {
-			return nil, fmt.Errorf("Error opening file: %v!", err)
+			// We again try to process as many files as we can.
+			prettylog.Errorf("Failed to open file(%s): %v!", filepath, err)
+			continue
 		}
 
 		metadata, err := tag.ReadFrom(f)
 		if err != nil {
-			return nil, fmt.Errorf("Error reading metadata: %v!", err)
+			prettylog.Errorf("Failed to read metadata(%s): %v!", filepath, err)
+			continue
 		}
 
 		hash, err := tag.Sum(f)
 		if err != nil {
-			return nil, fmt.Errorf("Error calculating hash: %v!", err)
+			prettylog.Errorf("Failed to calculate checksum(%s): %v!", filepath, err)
+			continue
 		}
 
 		info := database.QueueItem{
@@ -103,5 +108,5 @@ func processFiles(files []string) ([]database.QueueItem, error) {
 		queueInfo = append(queueInfo, info)
 	}
 
-	return queueInfo, nil
+	return queueInfo
 }

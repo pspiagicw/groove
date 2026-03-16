@@ -22,14 +22,16 @@ type ConfigShowCMD struct {
 }
 
 func (c *ConfigShowCMD) Run(opts *Opts) error {
-	return config.Show(opts.ConfigPath)
+	config.Show(opts.ConfigPath)
+	return nil
 }
 
 type ConfigValidateCMD struct {
 }
 
 func (c *ConfigValidateCMD) Run(opts *Opts) error {
-	return config.Validate(opts.ConfigPath)
+	config.Validate(opts.ConfigPath)
+	return nil
 }
 
 type ConfigCMD struct {
@@ -42,7 +44,8 @@ type ScanCMD struct {
 }
 
 func (s *ScanCMD) Run(opts *Opts) error {
-	return commands.Scan(opts.ConfigPath)
+	commands.Scan(opts.ConfigPath)
+	return nil
 }
 
 type ImportCMD struct {
@@ -50,7 +53,8 @@ type ImportCMD struct {
 }
 
 func (s *ImportCMD) Run(opts *Opts) error {
-	return commands.Import(opts.ConfigPath)
+	commands.Import(opts.ConfigPath)
+	return nil
 }
 
 var CLI struct {

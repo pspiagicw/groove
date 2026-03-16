@@ -33,12 +33,10 @@ func Init() error {
 	return nil
 }
 
-func Show(configPath string) error {
+func Show(configPath string) {
 	config := loadConfig(configPath)
 
 	config.PrettyPrint(os.Stdout)
-
-	return nil
 }
 
 func loadConfig(configPath string) *Config {
@@ -67,20 +65,20 @@ func loadConfig(configPath string) *Config {
 	return config
 }
 
-func Validate(configPath string) error {
+func Validate(configPath string) {
 
 	// If config loads, then it's valid!
 	_ = loadConfig(configPath)
 
-	return nil
+	prettylog.Successf("Config is valid!")
 }
 
-func ConfigProvider(configPath string) (*Config, error) {
+func ConfigProvider(configPath string) *Config {
 	config := loadConfig(configPath)
 
 	sanitizeConfig(config)
 
-	return config, nil
+	return config
 }
 
 // DONE: Refactor this one if possible.

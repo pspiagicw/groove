@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pspiagicw/groove/prettylog"
 )
 
 type DBTX interface {
@@ -30,24 +31,24 @@ type QueueItem struct {
 	DetectedGenre       string
 }
 
-func NewDB(dbPath string) (*DB, error) {
+func NewDB(dbPath string) *DB {
 	conn, err := sql.Open("sqlite3", dbPath)
+
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open database: %v!", err)
+		prettylog.Fatalf("Failed to open database connection: %v!", err)
 	}
 
 	if err = conn.Ping(); err != nil {
-		return nil, fmt.Errorf("Failed to connect to database: %v!", err)
+		prettylog.Fatalf("Failed to ping database: %v", err)
 	}
 
 	db := &DB{
 		conn: conn,
 	}
 
-	if err = db.initSchema(); err != nil {
-		return nil, err
-	}
-	return db, nil
+	db.initSchema()
+
+	return db
 }
 
 func (d *DB) QueryQueue() ([]QueueItem, error) {
@@ -140,18 +141,18 @@ func (d *DB) AddToQueue(queueInfo []QueueItem) (int, error) {
 	stmt, err := d.conn.Prepare("INSERT OR IGNORE INTO import_queue(path, hash, status, detected_artist, detected_title, detected_album, detected_album_artist) values (?, ?, ?, ?, ?, ?, ?)")
 
 	if err != nil {
-		return 0, fmt.Errorf("Error while inserting into db: %v!", err)
+		return 0, fmt.Errorf("Failed to insert item into db: %v!", err)
 	}
 
 	for _, info := range queueInfo {
 		result, err := stmt.Exec(info.Path, info.Hash, info.Status, info.DetectedArtist, info.DetectedTitle, info.DetectedAlbum, info.DetectedAlbumArtist)
 		if err != nil {
-			return 0, fmt.Errorf("Error while inserting into db: %v!", err)
+			return 0, fmt.Errorf("Failed to insert item into db: %v!", err)
 		}
 
 		rows, err := result.RowsAffected()
 		if err != nil {
-			return 0, fmt.Errorf("Error confirming insertion: %v", err)
+			return 0, fmt.Errorf("Failed to fetch item processed: %v", err)
 		}
 		rowsAffected += int(rows)
 	}
@@ -179,7 +180,7 @@ func (d *DB) Close() error {
 	return d.conn.Close()
 }
 
-func (d *DB) initSchema() error {
+func (d *DB) initSchema() {
 	schema := `
 CREATE TABLE IF NOT EXISTS artists (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -239,8 +240,6 @@ CREATE TABLE IF NOT EXISTS import_queue (
 	`
 	_, err := d.conn.Exec(schema)
 	if err != nil {
-		return fmt.Errorf("failed to initialize schema: %w", err)
+		prettylog.Fatalf("Failed to initialize schema: %v", err)
 	}
-
-	return nil
 }

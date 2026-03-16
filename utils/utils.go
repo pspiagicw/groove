@@ -100,3 +100,8 @@ func ExpandAndEnsureExists(path string) string {
 
 	return expandPath
 }
+
+func IsMusicFile(path string) bool {
+	ext := filepath.Ext(path)
+	return ext == ".mp3" || ext == ".flac" || ext == ".opus" || ext == ".wav" || ext == ".m4a" || ext == ".ogg"
+}
