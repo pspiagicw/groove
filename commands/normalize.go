@@ -11,11 +11,15 @@ func normalizeArtist(artist []string) []string {
 	newArtists := []string{}
 	for _, a := range artist {
 		// TODO: Implement normalization
-		for _, newA := range strings.Split(a, ";") {
+		for newA := range strings.SplitSeq(a, ";") {
 			newArtists = append(newArtists, strings.TrimSpace(newA))
 		}
 	}
 	return newArtists
+}
+
+func denormalizeArtist(artist []string) string {
+	return strings.Join(artist, ";")
 }
 func normalizeAlbum(name string) string {
 	// TODO: Implement (Deluxe and other removal) album normalization.
@@ -29,7 +33,15 @@ func normalizeAlbumArtist(name string) string {
 
 func normalizeGenre(name string) string {
 	// TODO: Implement genre normalization, including genre folding.
-	return strings.Join(strings.Split(name, "/"), " · ")
+	genres := strings.Split(name, "/")
+	for i, genre := range genres {
+		genres[i] = strings.TrimSpace(genre)
+	}
+	return strings.Join(genres, " · ")
+}
+
+func denormalizeGenre(name string) string {
+	return strings.Join(strings.Split(name, " · "), "/")
 }
 
 func normalizeYear(year int) int {

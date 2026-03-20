@@ -63,6 +63,7 @@ func showReviewScreen(i ImportSession) ImportSession {
 	skipIndex := 0
 
 	if fieldsMissing(i) {
+		prettylog.Infof("Fields are missing: correct them to include into database.")
 		skipIndex = 1
 	}
 
@@ -74,7 +75,6 @@ func showReviewScreen(i ImportSession) ImportSession {
 	}, skipIndex)
 
 	// These should match above order.
-	fmt.Println(result)
 	switch result {
 	case 1:
 		return importSuccess(i)
@@ -90,12 +90,12 @@ func showReviewScreen(i ImportSession) ImportSession {
 }
 
 func skipItem(i ImportSession) ImportSession {
-	// End the state machine.
 	i.Skipped = true
 	return i
 }
 
 func importSuccess(i ImportSession) ImportSession {
+	confirm("Import file ?")
 	return i
 }
 func lookupPrecheck(i ImportSession) ImportSession {
@@ -227,7 +227,7 @@ func applySelectively(i ImportSession, r *musicbrainz.EnrichedRecording) ImportS
 	i.NormalizedArtists = r.Artists
 	i.NormalizedAlbum = r.Album
 	i.NormalizedAlbumArtist = strings.Join(r.AlbumArtists, ",")
-	i.NormalizedGenre = strings.Join(r.Genres, ",")
+	i.NormalizedGenre = strings.Join(r.Genres, "/")
 	i.NormalizedDiscNumber = r.DiscNumber
 	i.NormalizedTrackNumber = r.TrackNumber
 	i.NormalizedYear = r.Year
@@ -274,7 +274,8 @@ func chooseCandidate(candidates []musicbrainz.EnrichedRecording, i ImportSession
 
 }
 func editManually(i ImportSession) ImportSession {
-	artists := strings.Join(i.NormalizedArtists, ",")
+	artists := denormalizeArtist(i.NormalizedArtists)
+	genre := denormalizeGenre(i.NormalizedGenre)
 	err := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().Title("Title").Value(&i.NormalizedTitle),
@@ -283,7 +284,7 @@ func editManually(i ImportSession) ImportSession {
 		huh.NewGroup(
 			huh.NewInput().Title("Album").Value(&i.NormalizedAlbum),
 			huh.NewInput().Title("Album Artist").Value(&i.NormalizedAlbumArtist),
-			huh.NewInput().Title("Genre").Value(&i.NormalizedGenre),
+			huh.NewInput().Title("Genre").Value(&genre),
 		),
 	).Run()
 
@@ -291,10 +292,12 @@ func editManually(i ImportSession) ImportSession {
 		prettylog.Errorf("Failed to execute form: %v", err)
 	}
 
-	i.CurrentArtists = strings.Split(artists, ";")
+	i.NormalizedArtists = normalizeArtist([]string{artists})
+	i.NormalizedGenre = normalizeGenre(genre)
 
 	return showReviewScreen(i)
 }
+
 func musicBrainzNoResults(i ImportSession) ImportSession {
 	result := promptUser([]string{
 		"Edit Manually",
@@ -333,21 +336,21 @@ func lookupBlocked(i ImportSession) ImportSession {
 
 func fieldsMissing(i ImportSession) bool {
 	missing := false
-	if i.CurrentTitle == MISSING_PLACEHOLDER {
+	if i.NormalizedTitle == MISSING_PLACEHOLDER {
 		missing = true
 	}
-	if len(i.CurrentArtists) == 0 {
+	if len(i.NormalizedArtists) == 0 {
 		missing = true
 	}
-	if i.CurrentAlbum == MISSING_PLACEHOLDER {
-		missing = true
-	}
-
-	if i.CurrentAlbumArtist == MISSING_PLACEHOLDER {
+	if i.NormalizedAlbum == MISSING_PLACEHOLDER {
 		missing = true
 	}
 
-	if i.CurrentGenre == MISSING_PLACEHOLDER {
+	if i.NormalizedAlbumArtist == MISSING_PLACEHOLDER {
+		missing = true
+	}
+
+	if i.NormalizedGenre == MISSING_PLACEHOLDER {
 		missing = true
 	}
 
@@ -528,6 +531,14 @@ func displayChangedDetails(info ImportSession) {
 		"Fields with change",
 		changedFields...,
 	)
+}
+
+func confirm(message string) {
+	var result bool
+	err := huh.NewConfirm().Title(message).Affirmative("yes!").Negative("NO!!").Value(&result).Run()
+	if err != nil {
+		prettylog.Fatalf("Error running prompt: %v!", err)
+	}
 }
 
 // Prompt user with choices, return value should be >= 1

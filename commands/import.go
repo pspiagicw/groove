@@ -22,10 +22,11 @@ func Import(configPath string) error {
 
 	for _, item := range queue {
 
-		proceed := getItemDetails(&item)
+		session := getItemDetails(&item)
 
-		if proceed {
-			importItem(conf, db, item)
+		if session != nil {
+			// importItem(conf, db, item)
+			prettylog.Infof("Item imported!")
 		}
 	}
 
@@ -137,41 +138,16 @@ func printRecording(recording musicbrainz.Recording) {
 	)
 }
 
-func getItemDetails(info *database.ScannedItem) bool {
-	// prettylog.PrintBlock(
-	// 	os.Stdout,
-	// 	"Item to Import",
-	// 	prettylog.KV("ID", info.Id),
-	// 	prettylog.KV("Path", info.Path),
-	// 	prettylog.KV("Hash", info.Hash),
-	// 	prettylog.KV("Status", info.Status),
-	// 	prettylog.KV("Artist", info.DetectedArtist),
-	// 	prettylog.KV("Album Artist", info.DetectedAlbumArtist),
-	// 	prettylog.KV("Album", info.DetectedAlbum),
-	// 	prettylog.KV("Title", info.DetectedTitle),
-	// 	prettylog.KV("Year", info.DetectedYear),
-	// 	prettylog.KV("Genre", info.DetectedGenre),
-	// )
+func getItemDetails(info *database.ScannedItem) *ImportSession {
 
 	item := confirmItemDetails(info)
 
+	if item.Skipped {
+		prettylog.Infof("(%s) skipped!", info.Path)
+		return nil
+	}
+
 	fmt.Println(item)
 
-	// fmt.Print(prettylog.Prompt("Proceed? (y/n): "))
-	//
-	// var input string
-	// fmt.Scanln(&input)
-	//
-	// if input == "y" {
-	// 	// recording, err := musicbrainz.Query(info.DetectedTitle, info.DetectedArtist)
-	// 	// if err != nil {
-	// 	// 	prettylog.Fatalf("MusicBrainz query failed: %v", err)
-	// 	// }
-	// }
-	//
-	// if input == "y" || input == "Y" {
-	// 	return true
-	// }
-
-	return false
+	return &item
 }
