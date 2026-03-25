@@ -28,6 +28,11 @@ func normalizeAlbum(name string) string {
 
 func normalizeAlbumArtist(name string) string {
 	// TODO: Implement album artist normalization.
+	genres := strings.Split(name, ",")
+	for i, genre := range genres {
+		genres[i] = strings.TrimSpace(genre)
+	}
+	return strings.Join(genres, " · ")
 	return name
 }
 

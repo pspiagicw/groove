@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -95,7 +94,6 @@ func skipItem(i ImportSession) ImportSession {
 }
 
 func importSuccess(i ImportSession) ImportSession {
-	confirm("Import file ?")
 	return i
 }
 func lookupPrecheck(i ImportSession) ImportSession {
@@ -132,8 +130,9 @@ func artistsToString(artists []struct{ Name string }) string {
 // }
 
 func formatRelease(releases []musicbrainz.Release) string {
-	if len(releases) != 1 {
+	if len(releases) < 1 {
 		prettylog.Errorf("Not 1 release, %d", len(releases))
+		return "<unknown>"
 	}
 
 	item := releases[0]
@@ -294,6 +293,7 @@ func editManually(i ImportSession) ImportSession {
 
 	i.NormalizedArtists = normalizeArtist([]string{artists})
 	i.NormalizedGenre = normalizeGenre(genre)
+	i.NormalizedAlbumArtist = normalizeAlbumArtist(i.NormalizedAlbumArtist)
 
 	return showReviewScreen(i)
 }
@@ -533,34 +533,17 @@ func displayChangedDetails(info ImportSession) {
 	)
 }
 
-func confirm(message string) {
+func confirm(message string) bool {
 	var result bool
 	err := huh.NewConfirm().Title(message).Affirmative("yes!").Negative("NO!!").Value(&result).Run()
 	if err != nil {
 		prettylog.Fatalf("Error running prompt: %v!", err)
 	}
+	return result
 }
 
 // Prompt user with choices, return value should be >= 1
 func promptUser(choices []string, skipIndex int) int {
-	// for i, choice := range choices {
-	// 	if i == skipIndex-1 {
-	// 		continue
-	// 	}
-	// 	fmt.Printf("%d. %s\n", i+1, choice)
-	// }
-	//
-	// var input string
-	// fmt.Printf("Choose: ")
-	// fmt.Scanln(&input)
-	//
-	// result, err := strconv.Atoi(input)
-	// if err != nil {
-	// 	prettylog.Errorf("Failed to convert %s into integer", input)
-	// 	return 0
-	// }
-	//
-	// return result
 	options := []huh.Option[int]{}
 	var choiceIndex int
 	for i, choice := range choices {
@@ -570,40 +553,13 @@ func promptUser(choices []string, skipIndex int) int {
 		options = append(options, huh.NewOption(choice, i+1))
 	}
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[int]().Title("Choose a option").Options(
-				options...,
-			).Value(&choiceIndex),
-		),
-	)
-	err := form.Run()
+	err := huh.NewSelect[int]().Title("Choose a option").Options(options...).Value(&choiceIndex).Run()
+
 	if err != nil {
 		prettylog.Fatalf("Failed to run form: %v", err)
 	}
 
 	return choiceIndex
-}
-
-// Prompt user with choices, but user can enter a single number, which will be returned.
-// The range of numbers are provided, the choices can be specified by range+1 numbers
-// The first choice is always skipped (but shown to the user)
-func promptUserWithNumber(choices []string, inputRange int) int {
-	fmt.Printf("1..%d Choose\n", inputRange)
-	for i, choice := range choices {
-		fmt.Printf("%d. %s\n", i+1+inputRange, choice)
-	}
-
-	var input string
-	fmt.Printf("Choose: ")
-	fmt.Scanln(&input)
-
-	result, err := strconv.Atoi(input)
-	if err != nil {
-		prettylog.Errorf("Failed to convert %s into integer", input)
-	}
-
-	return result
 }
 
 // START

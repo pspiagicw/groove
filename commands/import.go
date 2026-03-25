@@ -2,13 +2,11 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/pspiagicw/groove/config"
 	"github.com/pspiagicw/groove/database"
-	"github.com/pspiagicw/groove/musicbrainz"
 	"github.com/pspiagicw/groove/prettylog"
 	"github.com/pspiagicw/groove/utils"
 )
@@ -25,20 +23,30 @@ func Import(configPath string) error {
 		session := getItemDetails(&item)
 
 		if session != nil {
-			// importItem(conf, db, item)
-			prettylog.Infof("Item imported!")
+			importItem(conf, db, session)
+			// prettylog.Infof("Item imported!")
 		}
 	}
 
 	return nil
 }
-func importItem(conf *config.Config, db *database.DB, item database.ScannedItem) error {
 
-	// TODO: These functions will sanitize the data if needed.
-	artists := getArtists(item)
-	album := getAlbum(item)
-	// albumArtist := getAlbumArtist(item)
-	title := getTitle(item)
+func extractMainArtist(name string) string {
+	splits := strings.Split(name, ",")
+	return splits[0]
+}
+func importItem(conf *config.Config, db *database.DB, item *ImportSession) error {
+
+	// TODO: Add genre, year, disc, track_number and album artist id.
+	album := item.NormalizedAlbum
+	title := item.NormalizedTitle
+	artists := item.NormalizedArtists
+	album_artist := item.NormalizedAlbumArtist
+	year := item.NormalizedYear
+	track_number := item.NormalizedTrackNumber
+	disc := item.NormalizedDiscNumber
+
+	album_artist = extractMainArtist(album_artist)
 
 	albumID, err := db.InsertAlbum(album)
 	if err != nil {
@@ -65,28 +73,28 @@ func importItem(conf *config.Config, db *database.DB, item database.ScannedItem)
 		}
 	}
 
-	err = moveFile(conf, item)
-	if err != nil {
-		return fmt.Errorf("Error moving file: %v!", err)
-	}
+	// err = moveFile(conf, item)
+	// if err != nil {
+	// 	return fmt.Errorf("Error moving file: %v!", err)
+	// }
+	//
+	// err = db.MarkProcessed(item)
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = db.MarkProcessed(item)
-	if err != nil {
-		return err
-	}
-
-	prettylog.Successf("Imported %q", item.DetectedTitle)
+	// prettylog.Successf("Imported %q", item.DetectedTitle)
 
 	return nil
 }
-func moveFile(conf *config.Config, item database.ScannedItem) error {
+func moveFile(conf *config.Config, item *ImportSession) error {
 	err := utils.CreateIfNotExist(conf.LibraryDir)
 	if err != nil {
 		return fmt.Errorf("Error creating library folder: %v!", err)
 	}
 	extension := filepath.Ext(item.Path)
 
-	newPath := filepath.Join(conf.LibraryDir, item.DetectedAlbum, fmt.Sprintf("%s · %s%s", item.DetectedTitle, item.DetectedArtist, extension))
+	newPath := filepath.Join(conf.LibraryDir, item.NormalizedAlbum, fmt.Sprintf("%s · %s%s", item.NormalizedTitle, item.DetectedArtist, extension))
 	err = utils.CreateIfNotExist(filepath.Dir(newPath))
 	if err != nil {
 		return fmt.Errorf("Error creating directory for file: %v", err)
@@ -104,40 +112,6 @@ func moveFile(conf *config.Config, item database.ScannedItem) error {
 	return nil
 }
 
-// TODO: Implement this functions properly.
-func getArtists(item database.ScannedItem) []string {
-	return strings.Split(item.DetectedArtist, ";")
-}
-func getAlbum(item database.ScannedItem) string {
-	return item.DetectedAlbum
-}
-func getAlbumArtist(item database.ScannedItem) string {
-	return item.DetectedAlbumArtist
-}
-func getTitle(item database.ScannedItem) string {
-	return item.DetectedTitle
-}
-
-func formatArtists(recording musicbrainz.Recording) string {
-	artists := make([]string, 0, len(recording.Artists))
-	for _, artist := range recording.Artists {
-		artists = append(artists, artist.Name)
-	}
-
-	return strings.Join(artists, ", ")
-}
-
-func printRecording(recording musicbrainz.Recording) {
-	prettylog.PrintBlock(
-		os.Stdout,
-		"MusicBrainz Match",
-		prettylog.KV("Title", recording.Title),
-		prettylog.KV("Artists", formatArtists(recording)),
-		prettylog.KV("Release Count", len(recording.Releases)),
-		prettylog.KV("Length (ms)", recording.Length),
-	)
-}
-
 func getItemDetails(info *database.ScannedItem) *ImportSession {
 
 	item := confirmItemDetails(info)
@@ -147,7 +121,7 @@ func getItemDetails(info *database.ScannedItem) *ImportSession {
 		return nil
 	}
 
-	fmt.Println(item)
+	// fmt.Println(item)
 
 	return &item
 }

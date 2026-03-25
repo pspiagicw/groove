@@ -111,9 +111,9 @@ func (d *DB) InsertArtist(artist string) (int, error) {
 	return id, nil
 }
 
-func (d *DB) InsertAlbum(album string) (int, error) {
+func (d *DB) InsertAlbum(album string, year int, artist string) (int, error) {
 
-	_, err := d.conn.Exec("INSERT INTO albums(title) values (?) on conflict(title) do nothing;", album)
+	_, err := d.conn.Exec("INSERT INTO albums(title, year) values (?) on conflict(title) do nothing;", album)
 	if err != nil {
 		return -1, fmt.Errorf("Error inserting album: %v!", err)
 	}
