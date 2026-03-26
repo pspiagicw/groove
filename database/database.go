@@ -62,7 +62,7 @@ func NewDB(dbPath string) *DB {
 func (d *DB) QueryFiles() []File {
 	queryResult := []File{}
 
-	rows, err := d.conn.Query("SELECT * FROM files;")
+	rows, err := d.conn.Query("SELECT track_id, path FROM files;")
 
 	if err != nil {
 		prettylog.Fatalf("Failed to query items from database: %v!", err)
@@ -232,6 +232,41 @@ func (d *DB) AddToQueue(queueInfo []ScannedItem) int {
 	}
 
 	return rowsAffected
+}
+
+func (d *DB) QueryAlbumAndTrackCount(trackID int) (string, int, error) {
+	const q = `
+		SELECT a.title, COUNT(t2.id)
+		FROM tracks t1
+		JOIN albums a ON t1.album_id = a.id
+		JOIN tracks t2 ON t2.album_id = t1.album_id
+		WHERE t1.id = ?
+		GROUP BY a.id, a.title
+	`
+
+	var albumName string
+	var trackCount int
+
+	err := d.conn.QueryRow(q, trackID).Scan(&albumName, &trackCount)
+
+	if err != nil {
+		return "", 0, fmt.Errorf("Failed to query album name and count for track %d: %v", trackID, err)
+	}
+
+	return albumName, trackCount, nil
+}
+func (d *DB) QueryTitle(trackID int) (string, error) {
+	const q = `SELECT title FROM tracks WHERE id = ?`
+
+	var title string
+
+	err := d.conn.QueryRow(q, trackID).Scan(&title)
+
+	if err != nil {
+		return "", fmt.Errorf("Error querying for title for id %d: %v", trackID, err)
+	}
+
+	return title, nil
 }
 
 func (d *DB) MarkProcessed(queueInfo ScannedItem) error {
