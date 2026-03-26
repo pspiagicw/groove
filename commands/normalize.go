@@ -21,19 +21,25 @@ func normalizeArtist(artist []string) []string {
 func denormalizeArtist(artist []string) string {
 	return strings.Join(artist, ";")
 }
+
+func denormalizeAlbumArtists(artist []string) string {
+	return strings.Join(artist, ";")
+}
 func normalizeAlbum(name string) string {
 	// TODO: Implement (Deluxe and other removal) album normalization.
 	return name
 }
 
-func normalizeAlbumArtist(name string) string {
+func normalizeAlbumArtists(artists []string) []string {
 	// TODO: Implement album artist normalization.
-	genres := strings.Split(name, ",")
-	for i, genre := range genres {
-		genres[i] = strings.TrimSpace(genre)
+	newArtists := []string{}
+	for _, a := range artists {
+		// TODO: Implement normalization
+		for newA := range strings.SplitSeq(a, ";") {
+			newArtists = append(newArtists, strings.TrimSpace(newA))
+		}
 	}
-	return strings.Join(genres, " · ")
-	return name
+	return newArtists
 }
 
 func normalizeGenre(name string) string {

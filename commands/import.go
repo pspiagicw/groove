@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/pspiagicw/groove/config"
 	"github.com/pspiagicw/groove/database"
@@ -31,10 +30,6 @@ func Import(configPath string) error {
 	return nil
 }
 
-func extractMainArtist(name string) string {
-	splits := strings.Split(name, ",")
-	return splits[0]
-}
 func importItem(conf *config.Config, db *database.DB, item *ImportSession) error {
 
 	// TODO: Add genre, year, disc, track_number and album artist id.
@@ -45,33 +40,83 @@ func importItem(conf *config.Config, db *database.DB, item *ImportSession) error
 	year := item.NormalizedYear
 	track_number := item.NormalizedTrackNumber
 	disc := item.NormalizedDiscNumber
+	genre := item.NormalizedGenre
 
-	album_artist = extractMainArtist(album_artist)
+	// album_artist = extractMainArtist(album_artist)
 
-	albumID, err := db.InsertAlbum(album)
-	if err != nil {
-		return err
-	}
-	prettylog.Infof("Linked album %q as id=%d", album, albumID)
-
-	trackID, err := db.InsertTrack(title, albumID)
-	if err != nil {
-		return err
-	}
-	prettylog.Infof("Linked track %q as id=%d", title, trackID)
-
+	artistList := []int{}
 	for _, artist := range artists {
 		artistID, err := db.InsertArtist(artist)
 		if err != nil {
 			return err
 		}
-		prettylog.Infof("Linked artist %q as id=%d", artist, artistID)
+		prettylog.Infof("Added artist %q as id=%d", artist, artistID)
+		artistList = append(artistList, artistID)
+	}
 
-		err = db.LinkTrackAndArtist(trackID, artistID)
+	albumArtistList := []int{}
+	for _, artist := range album_artist {
+		artistID, err := db.InsertArtist(artist)
 		if err != nil {
 			return err
 		}
+		prettylog.Infof("Added album artist %q as id=%d", artist, artistID)
+		albumArtistList = append(albumArtistList, artistID)
 	}
+
+	albumID, err := db.InsertAlbum(album, year)
+	prettylog.Infof("Added album %q as id=%d", album, albumID)
+
+	if err != nil {
+		return err
+	}
+
+	trackID, err := db.InsertTrack(title, albumID, track_number, disc, genre)
+	prettylog.Infof("Added track %q as id=%d", title, trackID)
+
+	if err != nil {
+		return err
+	}
+
+	for _, artistID := range artistList {
+		err := db.LinkTrackAndArtist(trackID, artistID)
+		if err != nil {
+			return err
+		}
+		prettylog.Infof("Linked track %d with artist %d", trackID, artistID)
+	}
+
+	for _, artistID := range albumArtistList {
+		err := db.LinkAlbumAndArtist(albumID, artistID)
+		if err != nil {
+			return err
+		}
+		prettylog.Infof("Linked album %d with artist %d", albumID, artistID)
+	}
+
+	// if err != nil {
+	// 	return err
+	// }
+	// prettylog.Infof("Linked album %q as id=%d", album, albumID)
+	//
+	// trackID, err := db.InsertTrack(title, albumID)
+	// if err != nil {
+	// 	return err
+	// }
+	// prettylog.Infof("Linked track %q as id=%d", title, trackID)
+	//
+	// for _, artist := range artists {
+	// 	artistID, err := db.InsertArtist(artist)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	prettylog.Infof("Linked artist %q as id=%d", artist, artistID)
+	//
+	// 	err = db.LinkTrackAndArtist(trackID, artistID)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	// err = moveFile(conf, item)
 	// if err != nil {

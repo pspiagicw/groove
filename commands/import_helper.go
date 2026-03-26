@@ -20,7 +20,7 @@ type ImportSession struct {
 	NormalizedTitle       string
 	NormalizedArtists     []string
 	NormalizedAlbum       string
-	NormalizedAlbumArtist string
+	NormalizedAlbumArtist []string
 	NormalizedYear        int
 	NormalizedGenre       string
 	NormalizedTrackNumber int
@@ -29,7 +29,7 @@ type ImportSession struct {
 	CurrentTitle       string
 	CurrentArtists     []string
 	CurrentAlbum       string
-	CurrentAlbumArtist string
+	CurrentAlbumArtist []string
 	CurrentYear        int
 	CurrentGenre       string
 	CurrentTrackNumber int
@@ -209,11 +209,10 @@ func listToString(artists []string) string {
 	return strings.Join(mods, " · ")
 }
 func applyAll(i ImportSession, r *musicbrainz.EnrichedRecording) ImportSession {
-	// TODO: Album artists are plural
 	i.NormalizedTitle = r.Title
 	i.NormalizedArtists = r.Artists
 	i.NormalizedAlbum = r.Album
-	i.NormalizedAlbumArtist = listToString(r.AlbumArtists)
+	i.NormalizedAlbumArtist = r.AlbumArtists
 	i.NormalizedGenre = listToString(r.Genres)
 	i.NormalizedYear = r.Year
 	i.NormalizedTrackNumber = r.TrackNumber
@@ -225,7 +224,7 @@ func applySelectively(i ImportSession, r *musicbrainz.EnrichedRecording) ImportS
 	i.NormalizedTitle = r.Title
 	i.NormalizedArtists = r.Artists
 	i.NormalizedAlbum = r.Album
-	i.NormalizedAlbumArtist = strings.Join(r.AlbumArtists, ",")
+	i.NormalizedAlbumArtist = r.AlbumArtists
 	i.NormalizedGenre = strings.Join(r.Genres, "/")
 	i.NormalizedDiscNumber = r.DiscNumber
 	i.NormalizedTrackNumber = r.TrackNumber
@@ -275,6 +274,7 @@ func chooseCandidate(candidates []musicbrainz.EnrichedRecording, i ImportSession
 func editManually(i ImportSession) ImportSession {
 	artists := denormalizeArtist(i.NormalizedArtists)
 	genre := denormalizeGenre(i.NormalizedGenre)
+	albumArtists := denormalizeAlbumArtists(i.NormalizedAlbumArtist)
 	err := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().Title("Title").Value(&i.NormalizedTitle),
@@ -282,7 +282,7 @@ func editManually(i ImportSession) ImportSession {
 		),
 		huh.NewGroup(
 			huh.NewInput().Title("Album").Value(&i.NormalizedAlbum),
-			huh.NewInput().Title("Album Artist").Value(&i.NormalizedAlbumArtist),
+			huh.NewInput().Title("Album Artist").Value(&albumArtists),
 			huh.NewInput().Title("Genre").Value(&genre),
 		),
 	).Run()
@@ -293,7 +293,7 @@ func editManually(i ImportSession) ImportSession {
 
 	i.NormalizedArtists = normalizeArtist([]string{artists})
 	i.NormalizedGenre = normalizeGenre(genre)
-	i.NormalizedAlbumArtist = normalizeAlbumArtist(i.NormalizedAlbumArtist)
+	i.NormalizedAlbumArtist = normalizeAlbumArtists([]string{albumArtists})
 
 	return showReviewScreen(i)
 }
@@ -346,10 +346,9 @@ func fieldsMissing(i ImportSession) bool {
 		missing = true
 	}
 
-	if i.NormalizedAlbumArtist == MISSING_PLACEHOLDER {
+	if len(i.NormalizedAlbumArtist) == 0 {
 		missing = true
 	}
-
 	if i.NormalizedGenre == MISSING_PLACEHOLDER {
 		missing = true
 	}
@@ -367,7 +366,11 @@ func newSession(info *database.ScannedItem) ImportSession {
 		item.CurrentArtists = []string{}
 	}
 	item.CurrentAlbum = checkIfMissing(info.DetectedAlbum)
-	item.CurrentAlbumArtist = checkIfMissing(info.DetectedAlbumArtist)
+
+	item.CurrentAlbumArtist = []string{info.DetectedAlbumArtist}
+	if info.DetectedAlbumArtist == "" {
+		item.CurrentAlbumArtist = []string{}
+	}
 	item.CurrentGenre = checkIfMissing(info.DetectedGenre)
 
 	item.CurrentYear = info.DetectedYear
@@ -388,7 +391,7 @@ func normalize(i ImportSession) ImportSession {
 	i.NormalizedTitle = normalizeTitle(i.CurrentTitle)
 	i.NormalizedArtists = normalizeArtist(i.CurrentArtists)
 	i.NormalizedAlbum = normalizeAlbum(i.CurrentAlbum)
-	i.NormalizedAlbumArtist = normalizeAlbumArtist(i.CurrentAlbumArtist)
+	i.NormalizedAlbumArtist = normalizeAlbumArtists(i.CurrentAlbumArtist)
 	i.NormalizedGenre = normalizeGenre(i.CurrentGenre)
 	i.NormalizedYear = normalizeYear(i.CurrentYear)
 	i.NormalizedTrackNumber = normalizeTrackNumber(i.CurrentTrackNumber)
@@ -476,15 +479,24 @@ func displayChangedDetails(info ImportSession) {
 				info.NormalizedAlbum,
 			))
 	}
-	if info.NormalizedAlbumArtist != info.CurrentAlbumArtist {
+	if !compareArtists(info.CurrentAlbumArtist, info.NormalizedAlbumArtist) {
 		changedFields = append(
 			changedFields,
 			prettylog.KVWithDiff(
-				"AlbumArtist",
+				"Album Artists",
 				info.CurrentAlbumArtist,
 				info.NormalizedAlbumArtist,
 			))
 	}
+	// if info.NormalizedAlbumArtist != info.CurrentAlbumArtist {
+	// 	changedFields = append(
+	// 		changedFields,
+	// 		prettylog.KVWithDiff(
+	// 			"AlbumArtist",
+	// 			info.CurrentAlbumArtist,
+	// 			info.NormalizedAlbumArtist,
+	// 		))
+	// }
 	if info.NormalizedGenre != info.CurrentGenre {
 		changedFields = append(
 			changedFields,

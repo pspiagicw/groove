@@ -111,9 +111,9 @@ func (d *DB) InsertArtist(artist string) (int, error) {
 	return id, nil
 }
 
-func (d *DB) InsertAlbum(album string, year int, artist string) (int, error) {
+func (d *DB) InsertAlbum(album string, year int) (int, error) {
 
-	_, err := d.conn.Exec("INSERT INTO albums(title, year) values (?) on conflict(title) do nothing;", album)
+	_, err := d.conn.Exec("INSERT INTO albums(title, year) values (?, ?) on conflict(title) do nothing;", album, year)
 	if err != nil {
 		return -1, fmt.Errorf("Error inserting album: %v!", err)
 	}
@@ -130,9 +130,9 @@ func (d *DB) InsertAlbum(album string, year int, artist string) (int, error) {
 	return id, nil
 }
 
-func (d *DB) InsertTrack(title string, albumID int) (int, error) {
+func (d *DB) InsertTrack(title string, albumID int, track_number int, disc_number int, genre string) (int, error) {
 
-	_, err := d.conn.Exec("INSERT INTO tracks(title, album_id) values (?, ?) on conflict(title) do nothing;", title, albumID)
+	_, err := d.conn.Exec("INSERT INTO tracks(title, album_id, track_number, disc_number, genre) values (?, ?, ?, ?, ?) on conflict(title) do nothing;", title, albumID, track_number, disc_number, genre)
 	if err != nil {
 		return -1, fmt.Errorf("Error inserting track: %v!", err)
 	}
@@ -154,6 +154,14 @@ func (d *DB) LinkTrackAndArtist(trackID int, artistID int) error {
 
 	if err != nil {
 		return fmt.Errorf("Error linking track with artist: %v!", err)
+	}
+	return nil
+}
+func (d *DB) LinkAlbumAndArtist(albumID int, artistID int) error {
+	_, err := d.conn.Exec("INSERT INTO album_artists(album_id, artist_id) values (?, ?);", albumID, artistID)
+
+	if err != nil {
+		return fmt.Errorf("Error linking album with artist: %v!", err)
 	}
 	return nil
 }
@@ -216,9 +224,7 @@ CREATE TABLE IF NOT EXISTS artists (
 CREATE TABLE IF NOT EXISTS albums (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	title TEXT UNIQUE,
-	year INTEGER,
-	album_artist_id INTEGER,
-	FOREIGN KEY(album_artist_id) REFERENCES artists(id)
+	year INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS tracks (
@@ -235,9 +241,16 @@ CREATE TABLE IF NOT EXISTS tracks (
 CREATE TABLE IF NOT EXISTS track_artists (
 	track_id INTEGER,
 	artist_id INTEGER,
-	role TEXT,
 	PRIMARY KEY(track_id, artist_id),
 	FOREIGN KEY(track_id) REFERENCES tracks(id),
+	FOREIGN KEY(artist_id) REFERENCES artists(id)
+);
+
+CREATE TABLE IF NOT EXISTS album_artists (
+	album_id INTEGER,
+	artist_id INTEGER,
+	PRIMARY KEY(album_id, artist_id),
+	FOREIGN KEY(album_id) REFERENCES albums(id),
 	FOREIGN KEY(artist_id) REFERENCES artists(id)
 );
 
