@@ -23,7 +23,6 @@ func Import(configPath string) error {
 
 		if session != nil {
 			importItem(conf, db, session)
-			// prettylog.Infof("Item imported!")
 		}
 	}
 
@@ -32,7 +31,6 @@ func Import(configPath string) error {
 
 func importItem(conf *config.Config, db *database.DB, item *ImportSession) error {
 
-	// TODO: Add genre, year, disc, track_number and album artist id.
 	album := item.NormalizedAlbum
 	title := item.NormalizedTitle
 	artists := item.NormalizedArtists
@@ -41,8 +39,6 @@ func importItem(conf *config.Config, db *database.DB, item *ImportSession) error
 	track_number := item.NormalizedTrackNumber
 	disc := item.NormalizedDiscNumber
 	genre := item.NormalizedGenre
-
-	// album_artist = extractMainArtist(album_artist)
 
 	artistList := []int{}
 	for _, artist := range artists {
@@ -94,41 +90,17 @@ func importItem(conf *config.Config, db *database.DB, item *ImportSession) error
 		prettylog.Infof("Linked album %d with artist %d", albumID, artistID)
 	}
 
-	// if err != nil {
-	// 	return err
-	// }
-	// prettylog.Infof("Linked album %q as id=%d", album, albumID)
-	//
-	// trackID, err := db.InsertTrack(title, albumID)
-	// if err != nil {
-	// 	return err
-	// }
-	// prettylog.Infof("Linked track %q as id=%d", title, trackID)
-	//
-	// for _, artist := range artists {
-	// 	artistID, err := db.InsertArtist(artist)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	prettylog.Infof("Linked artist %q as id=%d", artist, artistID)
-	//
-	// 	err = db.LinkTrackAndArtist(trackID, artistID)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
+	err = db.InsertFile(trackID, item.Path)
+	if err != nil {
+		return err
+	}
 
-	// err = moveFile(conf, item)
-	// if err != nil {
-	// 	return fmt.Errorf("Error moving file: %v!", err)
-	// }
-	//
-	// err = db.MarkProcessed(item)
-	// if err != nil {
-	// 	return err
-	// }
+	prettylog.Infof("Inserted file entry with trackID %d and path (%q)", trackID, item.Path)
 
-	// prettylog.Successf("Imported %q", item.DetectedTitle)
+	err = db.MarkProcessed(item.ScannedItem)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

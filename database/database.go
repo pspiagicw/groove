@@ -35,6 +35,11 @@ type ScannedItem struct {
 	DetectedFileType    tag.FileType
 }
 
+type File struct {
+	TrackID int
+	Path    string
+}
+
 func NewDB(dbPath string) *DB {
 	conn, err := sql.Open("sqlite3", dbPath)
 
@@ -53,6 +58,29 @@ func NewDB(dbPath string) *DB {
 	db.initSchema()
 
 	return db
+}
+func (d *DB) QueryFiles() []File {
+	queryResult := []File{}
+
+	rows, err := d.conn.Query("SELECT * FROM files;")
+
+	if err != nil {
+		prettylog.Fatalf("Failed to query items from database: %v!", err)
+	}
+
+	for rows.Next() {
+		file := new(File)
+		err = rows.Scan(&file.TrackID, &file.Path)
+
+		if err != nil {
+			prettylog.Fatalf("Failed to scan sql result into struct: %v!", err)
+		}
+
+		queryResult = append(queryResult, *file)
+
+	}
+
+	return queryResult
 }
 
 func (d *DB) QueryQueue() []ScannedItem {
@@ -166,6 +194,16 @@ func (d *DB) LinkAlbumAndArtist(albumID int, artistID int) error {
 	return nil
 }
 
+func (d *DB) InsertFile(trackID int, path string) error {
+	_, err := d.conn.Exec("INSERT INTO files(track_id, path) values (?, ?);", trackID, path)
+
+	if err != nil {
+		return fmt.Errorf("Error inserting file into database: %v!", err)
+	}
+
+	return nil
+}
+
 func (d *DB) AddToQueue(queueInfo []ScannedItem) int {
 	rowsAffected := 0
 	stmt, err := d.conn.Prepare("INSERT OR IGNORE INTO import_queue(path, hash, status, detected_artist, detected_title, detected_album, detected_album_artist, detected_year, detected_genre, detected_disc, detected_track_number, detected_filetype) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -258,11 +296,6 @@ CREATE TABLE IF NOT EXISTS files (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	track_id INTEGER,
 	path TEXT UNIQUE,
-	codec TEXT,
-	bitrate INTEGER,
-	sample_rate INTEGER,
-	hash TEXT UNIQUE,
-	size INTEGER,
 	FOREIGN KEY(track_id) REFERENCES tracks(id)
 );
 

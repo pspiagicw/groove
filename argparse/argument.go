@@ -49,11 +49,19 @@ func (s *ScanCMD) Run(opts *Opts) error {
 }
 
 type ImportCMD struct {
-	DryRun bool `help:"Dry run the import process."`
 }
 
 func (s *ImportCMD) Run(opts *Opts) error {
 	commands.Import(opts.ConfigPath)
+	return nil
+}
+
+type CopyCMD struct {
+	DryRun bool `help:"Dry run the import process."`
+}
+
+func (c *CopyCMD) Run(opts *Opts) error {
+	commands.Move(opts.ConfigPath)
 	return nil
 }
 
@@ -63,6 +71,7 @@ var CLI struct {
 	Config ConfigCMD `cmd:"" help:"Validate, init or show the config."`
 	Scan   ScanCMD   `cmd:""  help:"Scan incoming directory for music."`
 	Import ImportCMD `cmd:""  help:"Import music."`
+	Copy   CopyCMD   `cmd:"" help:"Copy music files"`
 }
 
 func Run(version string) {
