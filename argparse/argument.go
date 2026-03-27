@@ -52,8 +52,7 @@ type ImportCMD struct {
 }
 
 func (s *ImportCMD) Run(opts *Opts) error {
-	commands.Import(opts.ConfigPath)
-	return nil
+	return commands.Import(opts.ConfigPath)
 }
 
 type MoveCMD struct {
@@ -61,8 +60,7 @@ type MoveCMD struct {
 }
 
 func (c *MoveCMD) Run(opts *Opts) error {
-	commands.Move(opts.ConfigPath)
-	return nil
+	return commands.Move(opts.ConfigPath)
 }
 
 var CLI struct {

@@ -1,13 +1,11 @@
 package commands
 
 import (
-	"fmt"
-	"path/filepath"
+	"errors"
 
 	"github.com/pspiagicw/groove/config"
 	"github.com/pspiagicw/groove/database"
 	"github.com/pspiagicw/groove/prettylog"
-	"github.com/pspiagicw/groove/utils"
 )
 
 func Import(configPath string) error {
@@ -17,16 +15,18 @@ func Import(configPath string) error {
 
 	queue := db.QueryQueue()
 
+	var err error
 	for _, item := range queue {
 
 		session := getItemDetails(&item)
 
 		if session != nil {
-			importItem(conf, db, session)
+			curErr := importItem(conf, db, session)
+			err = errors.Join(err, curErr)
 		}
 	}
 
-	return nil
+	return err
 }
 
 func importItem(conf *config.Config, db *database.DB, item *ImportSession) error {
@@ -68,15 +68,16 @@ func importItem(conf *config.Config, db *database.DB, item *ImportSession) error
 	}
 
 	trackID, err := db.InsertTrack(title, albumID, track_number, disc, genre)
-	prettylog.Infof("Added track %q as id=%d", title, trackID)
 
 	if err != nil {
 		return err
 	}
+	prettylog.Infof("Added track %q as id=%d", title, trackID)
 
 	for _, artistID := range artistList {
 		err := db.LinkTrackAndArtist(trackID, artistID)
 		if err != nil {
+			prettylog.Errorf("Error: %v!", err)
 			return err
 		}
 		prettylog.Infof("Linked track %d with artist %d", trackID, artistID)
@@ -85,6 +86,7 @@ func importItem(conf *config.Config, db *database.DB, item *ImportSession) error
 	for _, artistID := range albumArtistList {
 		err := db.LinkAlbumAndArtist(albumID, artistID)
 		if err != nil {
+			prettylog.Errorf("Error: %v!", err)
 			return err
 		}
 		prettylog.Infof("Linked album %d with artist %d", albumID, artistID)
@@ -104,30 +106,31 @@ func importItem(conf *config.Config, db *database.DB, item *ImportSession) error
 
 	return nil
 }
-func moveFile(conf *config.Config, item *ImportSession) error {
-	err := utils.CreateIfNotExist(conf.LibraryDir)
-	if err != nil {
-		return fmt.Errorf("Error creating library folder: %v!", err)
-	}
-	extension := filepath.Ext(item.Path)
 
-	newPath := filepath.Join(conf.LibraryDir, item.NormalizedAlbum, fmt.Sprintf("%s · %s%s", item.NormalizedTitle, item.DetectedArtist, extension))
-	err = utils.CreateIfNotExist(filepath.Dir(newPath))
-	if err != nil {
-		return fmt.Errorf("Error creating directory for file: %v", err)
-	}
-
-	if utils.AlreadyExists(newPath) {
-		return fmt.Errorf("Error copying file, destination file already exists!")
-	}
-
-	err = utils.CopyFile(item.Path, newPath)
-	if err != nil {
-		return fmt.Errorf("Error copying file: %v!", err)
-	}
-
-	return nil
-}
+// func moveFile(conf *config.Config, item *ImportSession) error {
+// 	err := utils.CreateIfNotExist(conf.LibraryDir)
+// 	if err != nil {
+// 		return fmt.Errorf("Error creating library folder: %v!", err)
+// 	}
+// 	extension := filepath.Ext(item.Path)
+//
+// 	newPath := filepath.Join(conf.LibraryDir, item.NormalizedAlbum, fmt.Sprintf("%s · %s%s", item.NormalizedTitle, item.DetectedArtist, extension))
+// 	err = utils.CreateIfNotExist(filepath.Dir(newPath))
+// 	if err != nil {
+// 		return fmt.Errorf("Error creating directory for file: %v", err)
+// 	}
+//
+// 	if utils.AlreadyExists(newPath) {
+// 		return fmt.Errorf("Error copying file, destination file already exists!")
+// 	}
+//
+// 	err = utils.CopyFile(item.Path, newPath)
+// 	if err != nil {
+// 		return fmt.Errorf("Error copying file: %v!", err)
+// 	}
+//
+// 	return nil
+// }
 
 func getItemDetails(info *database.ScannedItem) *ImportSession {
 

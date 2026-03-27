@@ -314,7 +314,6 @@ CREATE TABLE IF NOT EXISTS tracks (
 CREATE TABLE IF NOT EXISTS track_artists (
 	track_id INTEGER,
 	artist_id INTEGER,
-	PRIMARY KEY(track_id, artist_id),
 	FOREIGN KEY(track_id) REFERENCES tracks(id),
 	FOREIGN KEY(artist_id) REFERENCES artists(id)
 );
@@ -322,7 +321,6 @@ CREATE TABLE IF NOT EXISTS track_artists (
 CREATE TABLE IF NOT EXISTS album_artists (
 	album_id INTEGER,
 	artist_id INTEGER,
-	PRIMARY KEY(album_id, artist_id),
 	FOREIGN KEY(album_id) REFERENCES albums(id),
 	FOREIGN KEY(artist_id) REFERENCES artists(id)
 );
