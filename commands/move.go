@@ -1,13 +1,15 @@
 package commands
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/pspiagicw/groove/config"
 	"github.com/pspiagicw/groove/database"
 	"github.com/pspiagicw/groove/prettylog"
+	"github.com/pspiagicw/groove/utils"
 )
+
+const SINGLES_FOLDER = "Singles"
 
 func Move(configPath string) error {
 	config := config.ConfigProvider(configPath)
@@ -31,7 +33,7 @@ func Move(configPath string) error {
 
 		// TODO: Make this parameterzied
 		if trackCount < 3 {
-			moveToFolder(config, file.Path, "Single", title)
+			moveToFolder(config, file.Path, SINGLES_FOLDER, title)
 		} else {
 			moveToFolder(config, file.Path, albumName, title)
 		}
@@ -43,7 +45,21 @@ func moveToFolder(config *config.Config, origPath string, foldername string, tit
 	library := config.LibraryDir
 	ext := filepath.Ext(origPath)
 
-	newPath := filepath.Join(library, foldername, title+ext)
+	parentFolder := "Albums"
 
-	fmt.Println(newPath)
+	if foldername == SINGLES_FOLDER {
+		parentFolder = ""
+	}
+
+	newPath := filepath.Join(library, parentFolder, foldername, title+ext)
+
+	prettylog.Infof("Copying (%s) to %s", origPath, newPath)
+
+	utils.CreateIfNotExist(filepath.Dir(newPath))
+
+	err := utils.CopyFile(origPath, newPath)
+
+	if err != nil {
+		prettylog.Errorf("Error moving file(%s): %v!", origPath, err)
+	}
 }
