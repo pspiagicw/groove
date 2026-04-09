@@ -32,7 +32,7 @@ func Query(title string, artist string) ([]Recording, error) {
 	query := url.QueryEscape(fmt.Sprintf(`recording: "%s" AND artist:"%s"`, title, artist))
 
 	url := fmt.Sprintf(
-		"https://musicbrainz.org/ws/2/recording?query=%s&fmt=json&limit=5&inc=artists+releases",
+		"https://musicbrainz.org/ws/2/recording?query=%s&fmt=json&inc=artists+releases",
 		query,
 	)
 

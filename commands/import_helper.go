@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -105,7 +106,7 @@ func lookupPrecheck(i ImportSession) ImportSession {
 }
 
 func musicBrainzSearch(i ImportSession) ImportSession {
-	result, err := musicbrainz.Query(i.CurrentTitle, strings.Join(i.CurrentArtists, ","))
+	result, err := musicbrainz.Query(i.NormalizedTitle, strings.Join(i.NormalizedArtists, ","))
 
 	if err != nil {
 		prettylog.Errorf("Failed to query musicbrainz: %v!", err)
@@ -132,13 +133,13 @@ func artistsToString(artists []struct{ Name string }) string {
 func formatRelease(releases []musicbrainz.Release) string {
 	if len(releases) < 1 {
 		prettylog.Errorf("Not 1 release, %d", len(releases))
-		return "<unknown>"
+		return "0"
 	}
 
-	item := releases[0]
+	item := strconv.Itoa(len(releases))
 
 	// TODO: Add different style later on.
-	return item.Title + " · " + item.Date
+	return item
 }
 
 func formatRecording(r musicbrainz.Recording) string {
@@ -174,7 +175,7 @@ func useMusicBrainzResult(result *musicbrainz.Recording, i ImportSession) Import
 	candidates, err := client.EnrichRecording(ctx, result)
 
 	if err != nil {
-		prettylog.Errorf("Failed to get more details for track: %v", err)
+		prettylog.Errorf("Failed to get more details for recording: %v", err)
 	}
 
 	r := chooseCandidate(candidates, i)
@@ -213,7 +214,6 @@ func applyAll(i ImportSession, r *musicbrainz.EnrichedRecording) ImportSession {
 	i.NormalizedArtists = r.Artists
 	i.NormalizedAlbum = r.Album
 	i.NormalizedAlbumArtist = r.AlbumArtists
-	i.NormalizedGenre = listToString(r.Genres)
 	i.NormalizedYear = r.Year
 	i.NormalizedTrackNumber = r.TrackNumber
 	i.NormalizedDiscNumber = r.DiscNumber
@@ -225,7 +225,6 @@ func applySelectively(i ImportSession, r *musicbrainz.EnrichedRecording) ImportS
 	i.NormalizedArtists = r.Artists
 	i.NormalizedAlbum = r.Album
 	i.NormalizedAlbumArtist = r.AlbumArtists
-	i.NormalizedGenre = strings.Join(r.Genres, "/")
 	i.NormalizedDiscNumber = r.DiscNumber
 	i.NormalizedTrackNumber = r.TrackNumber
 	i.NormalizedYear = r.Year
